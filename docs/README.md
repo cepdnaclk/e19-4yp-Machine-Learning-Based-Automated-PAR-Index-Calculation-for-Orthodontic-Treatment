@@ -3,24 +3,24 @@ layout: home
 permalink: index.html
 
 # Please update this with your repository name and title
-repository-name: eYY-4yp-project-template
-title:
+repository-name: eYY-4yp-Machine-Learning-Based-Automated-PAR-Index-Calculation-for-Orthodontic-Treatment
+title: Machine-Learning-Based-Automated-PAR-Index-Calculation-for-Orthodontic-Treatment
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
 
-# Project Title
+# Machine-Learning-Based-Automated-PAR-Index-Calculation-for-Orthodontic-Treatment
 
 #### Team
 
-- eNumber, Name, [email](mailto:name@email.com)
-- eNumber, Name, [email](mailto:name@email.com)
-- eNumber, Name, [email](mailto:name@email.com)
+- E/19/006, Dhinushika Abrew, [email](mailto:e19006@eng.pdn.ac.lk)
+- E/19/017, Sajani Amanda, [email](mailto:e19017@eng.pdn.ac.lk)
+- E/19/240, Shenal Mendis, [email](mailto:e19240@eng.pdn.ac.lk)
 
 #### Supervisors
 
-- Name, [email](mailto:name@eng.pdn.ac.lk)
-- Name, [email](mailto:name@eng.pdn.ac.lk)
+- Dr. Asitha Bandaranayake, [email](mailto:asithab@eng.pdn.ac.lk)
+- Dr. H.S.K. Ratnatilake, [email](mailto:ksandamala2002@dental.pdn.ac.lk)
 
 #### Table of content
 
