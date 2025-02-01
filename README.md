@@ -3,7 +3,7 @@ ___
 ___
 
 ## Introduction
-Orthodontic treatment plays a vital role in correcting misaligned teeth, improving both oral health and facial aesthetics. However, evaluating the success of these treatments remains a challenge, as current assessment methods rely heavily on manual examination of pre- and post-treatment dental models. While experienced orthodontists can accurately perform these evaluations, less experienced practitioners, including residents and newly qualified professionals, may struggle with subjectivity and inconsistency. This can lead to errors in determining treatment effectiveness, particularly when using standardized assessment tools such as the Peer Assessment Rating (PAR) Index.
+Orthodontic treatment plays a vital role in correcting misaligned teeth, and improving both oral health and facial aesthetics. However, evaluating the success of these treatments remains a challenge, as current assessment methods rely heavily on the manual examination of pre- and post-treatment dental models. While experienced orthodontists can accurately perform these evaluations, less experienced practitioners, including residents and newly qualified professionals, may struggle with subjectivity and inconsistency. This can lead to errors in determining treatment effectiveness, particularly when using standardized assessment tools such as the Peer Assessment Rating (PAR) Index.
 
 Although automated PAR Index calculation tools exist, their high cost makes them inaccessible to many individual practitioners and smaller clinics. This lack of affordability creates a significant barrier to standardizing orthodontic treatment evaluations, limiting the adoption of objective assessment tools in everyday practice.
 
@@ -18,6 +18,6 @@ This project aims to address these issues by developing a cost-effective and acc
 ### Enhanced Learning
 > The tool provides objective feedback based on predefined PAR Index criteria, helping early-career orthodontists improve their evaluation skills.
 
-## Please refer the instructions in below URL:
+<!-- ## Please refer the instructions in below URL: 
 
-https://projects.ce.pdn.ac.lk/docs/how-to-add-a-project
+https://projects.ce.pdn.ac.lk/docs/how-to-add-a-project -->
