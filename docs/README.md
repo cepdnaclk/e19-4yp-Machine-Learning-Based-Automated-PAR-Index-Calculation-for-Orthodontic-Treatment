@@ -56,6 +56,10 @@ Existing research has explored manual and semi-automated PAR scoring tools, deep
 
 We use the AppleDental intraoral 3D scanner to scan physical teeth molds and generate high-resolution 3D dental models in .PLY or .STL format. These models serve as the input for landmark annotation and machine learning training. Additional datasets may be collected from publicly available sources to increase data diversity and improve model robustness.
 
+<div style="text-align: center;">
+  <img src="images/scanner.jpeg" alt="My Image" width="500">
+</div>
+
 **Annotation** <br>
 
 Manually label anatomical landmarks on 3D dental models under expert orthodontist supervision. The point-marking platform is provided to clinicians, allowing them to mark precise locations on the models. These manually annotated datasets form the ground truth required for training the machine learning model.
@@ -83,6 +87,9 @@ The trained system will automatically suggest landmark points on newly uploaded 
 * We used the AppleDental intraoral 3D scanner to scan physical dental molds and generate high-resolution 3D models in .PLY format.
 
 * These models were used for manual landmark annotation through our custom-built point-marking platform designed for expert input.
+
+<!--![Alt text](images/scanner.jpeg)-->
+
 
 **Annotation Process:**
 
