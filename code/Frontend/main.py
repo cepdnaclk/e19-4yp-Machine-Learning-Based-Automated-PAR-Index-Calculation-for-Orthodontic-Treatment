@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QComboBox, QLabel
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data
+from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, load_points
 from register_patient import RegisterWindow
 from disclaimers import (UPPER_ANTERIOR_SEGMENT, LOWER_ANTERIOR_SEGMENT, BUCCAL_SEGMENT)
 
@@ -21,6 +21,8 @@ class MainWindow(QMainWindow):
         self.btn_register = QPushButton("Register Patient")
 
         self.btn_load = QPushButton("Load STL")
+
+        self.btn_load_points = QPushButton("Load Points")
 
         self.label_filetype = QLabel('Select the file type:')
         self.fileTypeComboBox = QComboBox()
@@ -84,7 +86,7 @@ class MainWindow(QMainWindow):
         """
 
         uniform_width = 25
-        for btn in [self.btn_register,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
+        for btn in [self.btn_register,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_load_points, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
             if (btn == self.label_filetype):
                 btn.setFixedHeight(uniform_width)
                 btn.setStyleSheet("color: white; font-size: 14px; margin: 5px; border: 2px;")
@@ -96,6 +98,7 @@ class MainWindow(QMainWindow):
         self.btn_register.clicked.connect(self.open_register_window)
         self.btn_load.clicked.connect(lambda: load_stl(self))
         self.btn_save_json.clicked.connect(lambda: save_to_json(self))
+        self.btn_load_points.clicked.connect(lambda: load_points(self))
         self.btn_reset.clicked.connect(lambda: reset_markers(self))
         self.btn_undo.clicked.connect(lambda: undo_marker(self))
         self.btnSave.clicked.connect(lambda: save_data(self))
