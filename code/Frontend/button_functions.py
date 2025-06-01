@@ -164,4 +164,83 @@ def save_data(self):
     except Exception as e:
         QMessageBox.critical(self, "Error", "An error occurred: " + str(e))
 
+def load_points(self):
+    try:
+        if not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
+            QMessageBox.warning(self, "Warning", "No patient data available. Register a patient first!")
+            return
+
+        if not hasattr(self, 'renderer') or self.renderer.GetActors().GetNumberOfItems() == 0:
+            QMessageBox.warning(self, "Warning", "No STL file loaded. Load an STL file first!")
+            return
+
+        url = f'http://localhost:8080/api/point?patient_id={self.file_data["patient_id"]}'
+        print(f"Requesting points from: {url}")
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            points_data = response.json()
+            print(f"Received points data: {points_data}")
+            file_type_points = points_data.get(self.fileType, [])
+            
+            if not file_type_points:
+                QMessageBox.information(self, "Info", f"No points found for {self.fileType}.")
+                return
+
+            self.markers.clear()
+            self.points.clear()
+
+            for point in file_type_points:
+                coords = [float(x) for x in point['coordinates'].split(',')]
+                position = (coords[0], coords[1], coords[2])
+                label = point['pointName']
+
+                sphereSource = vtk.vtkSphereSource()
+                sphereSource.SetCenter(position)
+                sphereSource.SetRadius(0.1)
+                sphereSource.Update()
+
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputConnection(sphereSource.GetOutputPort())
+
+                sphereActor = vtk.vtkActor()
+                sphereActor.SetMapper(mapper)
+                sphereActor.GetProperty().SetColor(1, 0, 0)
+
+                textActor = vtk.vtkBillboardTextActor3D()
+                textActor.SetInput(label)
+                textProp = textActor.GetTextProperty()
+                textProp.SetFontSize(18)
+                textProp.SetColor(0, 1, 0)
+                textProp.SetBold(True)
+                textActor.SetPosition(position)
+
+                self.renderer.AddActor(sphereActor)
+                self.renderer.AddActor(textActor)
+
+                self.markers.append({
+                    "name": label,
+                    "x": coords[0],
+                    "y": coords[1],
+                    "z": coords[2],
+                    "actor": sphereActor,
+                    "textActor": textActor
+                })
+
+                self.points.append({
+                    "name": label,
+                    "x": coords[0],
+                    "y": coords[1],
+                    "z": coords[2]
+                })
+
+            self.vtkWidget.GetRenderWindow().Render()
+            QMessageBox.information(self, "Success", "Points loaded successfully!")
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to load points: {response.text}")
+            print(f"Error response: {response.text}, Status: {response.status_code}")
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+        print(f"Exception: {str(e)}")
+
 
