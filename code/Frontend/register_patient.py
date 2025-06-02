@@ -1,4 +1,5 @@
 import base64
+import trimesh
 import gzip
 import shutil
 import sys
@@ -72,11 +73,11 @@ class RegisterWindow(QMainWindow):
         files_layout = QHBoxLayout()
         # File Upload Groups
         opposing_group = QGroupBox('Lower Arch Segment')
-        buccal_group = QGroupBox('Buccal Segment')
+        #buccal_group = QGroupBox('Buccal Segment')
         prep_group = QGroupBox('Upper Arch Segment')
 
         self.opposing_file_display = FileDisplayWidget()
-        self.buccal_file_display = FileDisplayWidget()
+        #self.buccal_file_display = FileDisplayWidget()
         self.prep_file_display = FileDisplayWidget()
 
         button_style = """
@@ -99,8 +100,8 @@ class RegisterWindow(QMainWindow):
         }
         """
 
-        for group, display_widget in zip([opposing_group, buccal_group, prep_group],
-                                         [self.opposing_file_display, self.buccal_file_display, self.prep_file_display]):
+        for group, display_widget in zip([opposing_group, prep_group],
+                                         [self.opposing_file_display, self.prep_file_display]):
             button = QPushButton('Browse')
             button.setStyleSheet(button_style)
             button.clicked.connect(lambda _, b=button, d=display_widget: self.browse_file(b, d))
@@ -140,69 +141,124 @@ class RegisterWindow(QMainWindow):
         return compressed_file
 
     def register_patient(self):
+        """Register a patient and automatically merge STL files, saving buccal STL in the upper STL's directory."""
         # Collect data
         patient_data = {
             'name': self.patient_input.text(),
-            'treatment_status': 'Pre' if self.pre_treatment_radio.isChecked() else 'Post',
+            'treatment_status': 'Pre' if self.pre_treatment_radio.isChecked() else 'Post'
         }
 
         files_data = {}
-        temp_files = []  # To track temporary files for cleanup
+        temp_files = []  # Track temporary files
 
-        # Compress and prepare files for upload
-        for label, widget in zip(['prep_file', 'opposing_file', 'buccal_file'],
-                                [self.prep_file_display, self.opposing_file_display, self.buccal_file_display]):
-            if widget.file_path:
-                compressed_path = self.gzip_compress_file(widget.file_path)
-                #print(compressed_path)
-                temp_files.append(compressed_path)  # Keep track for cleanup
-                file_key = label  # Key as used in the form data
-                files_data[file_key] = (os.path.basename(compressed_path), open(compressed_path, 'rb'), 'application/gzip')
-        
-        #required_keys = ['prep_file', 'opposing_file', 'buccal_file']
-        #missing_keys = [key for key in required_keys if key not in files_data]
+        # Validate inputs
+        if not patient_data['name']:
+            QMessageBox.warning(self, "Error", "Patient name is required.")
+            return
+        if not self.prep_file_display.file_path or not self.opposing_file_display.file_path:
+            QMessageBox.warning(self, "Error", "Both upper and lower STL files are required.")
+            return
+        if not (self.pre_treatment_radio.isChecked() or self.post_treatment_radio.isChecked()):
+            QMessageBox.warning(self, "Error", "Please select a treatment type.")
+            return
 
-        #if missing_keys or not patient_data['name'] or not patient_data['treatment_status']:
-        if not patient_data['name'] or not patient_data['treatment_status']:
-            QMessageBox.warning(self, "Error", "All fields must be filled.")
-                  
-        else:
+        # Check file sizes
+        max_size_mb = 100
+        for path in [self.prep_file_display.file_path, self.opposing_file_display.file_path]:
+            size_mb = os.path.getsize(path) / (1024 * 1024)
+            if size_mb > max_size_mb:
+                QMessageBox.critical(self, "Error", f"File {os.path.basename(path)} is too large ({size_mb:.2f} MB). Limit is {max_size_mb} MB.")
+                return
+
+        try:
+            # Prepare upper and lower STL files
+            prep_compressed = self.gzip_compress_file(self.prep_file_display.file_path)
+            files_data['prep_file'] = (os.path.basename(prep_compressed),
+                                    open(prep_compressed, 'rb'),
+                                    'application/gzip')
+            temp_files.append(prep_compressed)
+
+            opposing_compressed = self.gzip_compress_file(self.opposing_file_display.file_path)
+            files_data['opposing_file'] = (os.path.basename(opposing_compressed),
+                                        open(opposing_compressed, 'rb'),
+                                        'application/gzip')
+            temp_files.append(opposing_compressed)
+
+            # Merge upper and lower STL files
+            buccal_base64 = None
+            buccal_file_path = None
             try:
-                # url = 'http://3.6.62.207:8080/api/patient/register'  # Update with your actual URL
-                url = 'http://localhost:8080/api/patient/register'
-                response = requests.post(url, data=patient_data, files=files_data)
-                patient_id = response.json().get('patient_id')
+                # Load meshes
+                upper_mesh = trimesh.load_mesh(self.prep_file_display.file_path)
+                lower_mesh = trimesh.load_mesh(self.opposing_file_display.file_path)
 
-                if response.status_code == 201:
-                    
-                    data = {}
+                # Merge meshes
+                combined_mesh = upper_mesh + lower_mesh
 
-                    for label, widget in zip(['opposing_file', 'buccal_file', 'prep_file'],
-                                [self.opposing_file_display, self.buccal_file_display, self.prep_file_display]):
-                        if widget.file_path:
-                            with open(widget.file_path, "rb") as file:
-                                # Encode the file content in base64
-                                data[label] = base64.b64encode(file.read()).decode('utf-8')
-                    
-                    data['patient_id'] = patient_id
+                # Save merged mesh to the same directory as upper STL
+                upper_dir = os.path.dirname(self.prep_file_display.file_path)
+                buccal_file_path = os.path.join(upper_dir, f"buccal_closed_{patient_data['name'].replace(' ', '_')}.stl")
+                # Ensure unique filename
+                base, ext = os.path.splitext(buccal_file_path)
+                counter = 1
+                while os.path.exists(buccal_file_path):
+                    buccal_file_path = f"{base}_{counter}{ext}"
+                    counter += 1
+                combined_mesh.export(buccal_file_path)
 
-                    self.data_ready.emit(data)
+                # Read buccal STL for base64 encoding
+                with open(buccal_file_path, 'rb') as file:
+                    buccal_base64 = base64.b64encode(file.read()).decode('utf-8')
 
-                    QMessageBox.information(self, "Success", "Data submitted successfully.")
+                # Compress for backend
+                compressed_buccal = self.gzip_compress_file(buccal_file_path)
+                temp_files.append(compressed_buccal)
+                files_data['buccal_file'] = (
+                    'buccal_closed.stl.gz',
+                    open(compressed_buccal, 'rb'),
+                    'application/gzip')
 
-                else:
-                    QMessageBox.critical(self, "Error", "Failed to submit data. Server responded with error: {}".format(response.text))
             except Exception as e:
-                QMessageBox.critical(self, "Error", "An error occurred: {}".format(str(e)))
-            finally:
-                # Clean up: Close files and remove temporary files
-                for _, file_tuple in files_data.items():
-                    file_tuple[1].close()  # Close the file
-                # for temp_file in temp_files:
-                #     os.remove(temp_file)  # Delete the temporary file
+                QMessageBox.critical(self, "Error", f"Failed to merge STL files: {str(e)}")
+                print(f"Error merging STL files: {e}")
+                return
+
+            # Send data to backend
+            url = 'http://localhost:8080/api/patient/register'
+            response = requests.post(url, data=patient_data, files=files_data)
+            patient_id = response.json().get('patient_id')
+
+            if response.status_code == 201:
+                # Prepare data for emission
+                data = {
+                    'patient_id': patient_id,
+                    'prep_file': base64.b64encode(open(self.prep_file_display.file_path, 'rb').read()).decode('utf-8'),
+                    'opposing_file': base64.b64encode(open(self.opposing_file_display.file_path, 'rb').read()).decode('utf-8'),
+                    'buccal_file': buccal_base64
+                }
+
+                self.data_ready.emit(data)
+                QMessageBox.information(self, "Success", f"Patient registered successfully. Buccal STL saved as {buccal_file_path}")
+                self.close()
+            else:
+                QMessageBox.critical(self, "Error", f"Failed to register patient: {response.text}")
+                print(f"Error: {response.text}, Status: {response.status_code}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+            print(f"Exception: {e}")
+        finally:
+            # Clean up files
+            for _, file_tuple in files_data.items():
+                file_tuple[1].close()
+            for temp_file in temp_files:
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except Exception as e:
+                        print(f"Failed to delete temp file {temp_file}: {e}")
 
     def browse_file(self, button, display_widget):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select File")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "STL Files (*.stl)")
         if file_path:
             display_widget.set_file(file_path)
-  
