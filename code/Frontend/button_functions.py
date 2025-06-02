@@ -3,11 +3,12 @@ import base64
 import tempfile
 import numpy as np
 import requests
-from PyQt5.QtWidgets import QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QTableWidgetItem
 from vtk.util.numpy_support import vtk_to_numpy
 import vtk
 import numpy
 from stl import mesh
+from patient_list import PatientListWindow
 from commonHelper import RenderHelper  # Ensure this is properly imported
 
 def load_stl(self):
@@ -244,3 +245,22 @@ def load_points(self):
         print(f"Exception: {str(e)}")
 
 
+def get_patient_list(self):
+    self.patient_list_window = PatientListWindow()
+    self.patient_list_window.show()
+    response = requests.get("http://localhost:8080/api/patient/patients")
+    patients = response.json()
+    self.patient_list_window.patient_table.setRowCount(len(patients))
+    for i, patient in enumerate(patients):
+        self.patient_list_window.patient_table.setItem(i, 0, QTableWidgetItem(str(patient["patient_id"])))
+        self.patient_list_window.patient_table.setItem(i, 1, QTableWidgetItem(patient["name"]))
+        self.patient_list_window.patient_table.setItem(i, 2, QTableWidgetItem(str(patient["pre_PAR_score"])))
+        self.patient_list_window.patient_table.setItem(i, 3, QTableWidgetItem(str(patient["post_PAR_score"])))
+
+
+def view_points(self):
+    selected_row = self.patient_table.currentRow()
+    patient_id = self.patient_table.item(selected_row, 0).text()
+    response = requests.get(f"http://localhost:8080/api/patients/{patient_id}/points")
+    points = response.json()
+    # Display points in a new window or on a map

@@ -2,13 +2,15 @@ import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QComboBox, QLabel
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, load_points
+from patient_list import PatientListWindow
+from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, get_patient_list,load_points
 from register_patient import RegisterWindow
 from disclaimers import (UPPER_ANTERIOR_SEGMENT, LOWER_ANTERIOR_SEGMENT, BUCCAL_SEGMENT)
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        self.patient_list_window = None
         self.mainWidget = QWidget()
         self.setCentralWidget(self.mainWidget)
         self.mainLayout = QHBoxLayout()
@@ -17,8 +19,9 @@ class MainWindow(QMainWindow):
         self.buttonPanel = QVBoxLayout()
         self.mainLayout.addLayout(self.buttonPanel)
         self.mainWidget.setStyleSheet("background-color: black;")
-
+        
         self.btn_register = QPushButton("Register Patient")
+        self.view_patients = QPushButton("View Patients")
 
         self.btn_load = QPushButton("Load STL")
 
@@ -86,7 +89,7 @@ class MainWindow(QMainWindow):
         """
 
         uniform_width = 25
-        for btn in [self.btn_register,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_load_points, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
+        for btn in [self.btn_register,self.view_patients,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_load_points, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
             if (btn == self.label_filetype):
                 btn.setFixedHeight(uniform_width)
                 btn.setStyleSheet("color: white; font-size: 14px; margin: 5px; border: 2px;")
@@ -96,6 +99,8 @@ class MainWindow(QMainWindow):
 
         self.buttonPanel.addSpacing(2)
         self.btn_register.clicked.connect(self.open_register_window)
+        self.view_patients.clicked.connect(lambda: get_patient_list(self))
+
         self.btn_load.clicked.connect(lambda: load_stl(self))
         self.btn_save_json.clicked.connect(lambda: save_to_json(self))
         self.btn_load_points.clicked.connect(lambda: load_points(self))
