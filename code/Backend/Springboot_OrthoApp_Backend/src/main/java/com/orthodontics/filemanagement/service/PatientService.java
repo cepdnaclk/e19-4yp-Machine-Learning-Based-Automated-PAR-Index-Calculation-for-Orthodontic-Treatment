@@ -63,4 +63,15 @@ public class PatientService {
         }
         return patients;
     }
+
+    // TODO: Use to select one from list
+    public PatientsResponse getPatientById(Long patientId) {
+        Patient patient = patientRepository.findById(patientId).orElseThrow();
+        return PatientsResponse.builder()
+                .patient_id(patient.getPatient_id())
+                .name(patient.getName())
+                .pre_PAR_score(10.0)
+                .post_PAR_score(20.0)
+                .build();
+    }
 }

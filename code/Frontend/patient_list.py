@@ -77,7 +77,7 @@ QHeaderView::section {
         self.main_widget.setLayout(self.main_layout)
         
         # View Points Button
-        self.btn_view_points = QPushButton("View Points")
+        self.btn_view_points = QPushButton("Select Patient")
         self.btn_view_points.setStyleSheet(button_style)
         self.main_layout.addWidget(self.btn_view_points)
 
