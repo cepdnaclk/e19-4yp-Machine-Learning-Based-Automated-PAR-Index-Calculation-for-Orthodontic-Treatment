@@ -42,11 +42,11 @@ public class PatientController {
         return new ResponseEntity<>(patients, HttpStatus.OK);
     }
 
-    @CrossOrigin
-    @GetMapping(value = "/{patientId}")
-    public ResponseEntity<PatientsResponse> getPatientById(@PathVariable Long patientId) {
-        PatientsResponse patient = patientService.getPatientById(patientId);
-        return new ResponseEntity<>(patient, HttpStatus.OK);
-    }
+//    @CrossOrigin
+//    @GetMapping(value = "/{patientId}")
+//    public ResponseEntity<PatientsResponse> getPatientById(@PathVariable Long patientId) {
+//        PatientsResponse patient = patientService.getPatientById(patientId);
+//        return new ResponseEntity<>(patient, HttpStatus.OK);
+//    }
 
 }
