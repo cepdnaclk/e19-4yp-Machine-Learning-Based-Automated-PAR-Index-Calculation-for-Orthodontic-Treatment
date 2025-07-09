@@ -69,7 +69,8 @@ public class STLFileService {
 
     public Resource getSTLFile(Long patient_id, String file_Type) {
         Long stl_id = getSTLFileId(patient_id);
-        STLFiles stlFiles = STLFileRepository.findByPatient_id(stl_id);
+        STLFiles stlFiles = STLFileRepository.findByPatient_id(patient_id);
+        if (stlFiles == null) return null;
 
         String filePath = switch (file_Type) {
             case "Lower" -> stlFiles.getPrep();

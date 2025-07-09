@@ -68,7 +68,7 @@ class RegisterWindow(QMainWindow):
         self.pre_treatment_radio = QRadioButton('Pre Treatment')
         self.post_treatment_radio = QRadioButton('Post Treatment')
         self.treatment_type_layout.addWidget(self.pre_treatment_radio)
-        self.treatment_type_layout.addWidget(self.post_treatment_radio)
+        self.treatment_type_layout.addWidget(self.post_treatment_radio) 
         self.treatment_type_group.setLayout(self.treatment_type_layout)
         
         files_layout = QHBoxLayout()
