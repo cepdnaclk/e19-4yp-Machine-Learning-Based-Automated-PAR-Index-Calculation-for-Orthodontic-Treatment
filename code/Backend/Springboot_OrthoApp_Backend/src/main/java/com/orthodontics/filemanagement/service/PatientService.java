@@ -36,14 +36,14 @@ public class PatientService {
 
         for (Patient patient : allPatients) {
             PatientsResponse finalPatient= PatientsResponse.builder()
-                                                .patient_id(patient.getPatient_id())
-                                                .name(patient.getName())
-                                                .build();
+                    .patient_id(patient.getPatient_id())
+                    .name(patient.getName())
+                    .build();
 
             if(Objects.equals(patient.getTreatment_status(), "Pre Treatment")) {
                 finalPatient.setPre_PAR_score(10.0);
                 for (Patient patient1 : allPatients) {
-                     if(patient.getName().equals(patient1.getName()) && Objects.equals(patient1.getTreatment_status(), "Post Treatment")) {
+                    if(patient.getName().equals(patient1.getName()) && Objects.equals(patient1.getTreatment_status(), "Post Treatment")) {
                         finalPatient.setPost_PAR_score(20.0);
                         allPatients.remove(patient1);
                     }
@@ -62,16 +62,5 @@ public class PatientService {
             patients.add(finalPatient);
         }
         return patients;
-    }
-
-    // TODO: Use to select one from list
-    public PatientsResponse getPatientById(Long patientId) {
-        Patient patient = patientRepository.findById(patientId).orElseThrow();
-        return PatientsResponse.builder()
-                .patient_id(patient.getPatient_id())
-                .name(patient.getName())
-                .pre_PAR_score(10.0)
-                .post_PAR_score(20.0)
-                .build();
     }
 }

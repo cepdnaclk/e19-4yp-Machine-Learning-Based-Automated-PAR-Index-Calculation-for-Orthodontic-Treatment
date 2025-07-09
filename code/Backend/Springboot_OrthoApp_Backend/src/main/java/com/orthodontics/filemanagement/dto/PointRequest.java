@@ -7,11 +7,13 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class PointRequest {
+    private Long point_ID;
     private Long patient_id;
-    private String file_type;
     private String point_name;
     private String coordinates;
+    private String file_type;
+    private String measurement_type;
 }
