@@ -1,35 +1,29 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QComboBox, QLabel
-from PyQt5.QtGui import QIcon
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from patient_list import PatientListWindow
-from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, get_patient_list,load_points
+from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, load_points, edit_selected_point
 from register_patient import RegisterWindow
 from disclaimers import (UPPER_ANTERIOR_SEGMENT, LOWER_ANTERIOR_SEGMENT, BUCCAL_SEGMENT)
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.patient_list_window = None
-        self.current_patient = None # Placeholder for the current patient data
-        self.file_data = None  # For backward compatibility
         self.mainWidget = QWidget()
         self.setCentralWidget(self.mainWidget)
         self.mainLayout = QHBoxLayout()
         self.mainWidget.setLayout(self.mainLayout)
 
-        self.setWindowTitle("PAR Index Calculation")
-        self.setGeometry(100, 100, 1000, 600)
-        self.text_actor = vtk.vtkTextActor()
         self.buttonPanel = QVBoxLayout()
         self.mainLayout.addLayout(self.buttonPanel)
         self.mainWidget.setStyleSheet("background-color: black;")
-        
+
         self.btn_register = QPushButton("Register Patient")
-        self.view_patients = QPushButton("View Patients")
+
         self.btn_load = QPushButton("Load STL")
+
         self.btn_load_points = QPushButton("Load Points")
+
         self.label_filetype = QLabel('Select the file type:')
         self.fileTypeComboBox = QComboBox()
         self.fileTypeComboBox.addItems(
@@ -38,13 +32,16 @@ class MainWindow(QMainWindow):
              "Buccal Segment"
             ])
         self.fileType = "Upper Arch Segment"  # Default value
+
         self.fileTypeComboBox.currentIndexChanged.connect(self.update_file_type)
+
         self.measurement = "undefined"
+        
         self.btn_save_json = QPushButton("Save to JSON")
         self.btn_reset = QPushButton("Reset Markers")
         self.btn_undo = QPushButton("Undo Marker")
         self.btnSave = QPushButton("Save")
-        
+
         button_style = """
         QPushButton, QComboBox, QLabel {
             background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2196F3, stop:1 #0D47A1);
@@ -87,28 +84,20 @@ class MainWindow(QMainWindow):
         }
         """
 
-        uniform_height = 50
-        for btn in [self.btn_register,self.view_patients,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_load_points, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
+        uniform_width = 25
+        for btn in [self.btn_register,self.label_filetype,self.fileTypeComboBox,self.btn_load, self.btn_load_points, self.btn_save_json, self.btn_reset, self.btn_undo, self.btnSave]:
             if (btn == self.label_filetype):
-                btn.setFixedHeight(uniform_height)
+                btn.setFixedHeight(uniform_width)
                 btn.setStyleSheet("color: white; font-size: 14px; margin: 5px; border: 2px;")
             else:
                 btn.setStyleSheet(button_style)
             self.buttonPanel.addWidget(btn)
 
-        # self.buttonPanel.addSpacing(2)
-        # Ensure no extra stretch at the bottom
-        self.buttonPanel.addStretch(0)
-
-        # Optionally, set layout margins to 0 to avoid padding
-        self.buttonPanel.setContentsMargins(10, 10, 10, 10)
-
+        self.buttonPanel.addSpacing(2)
         self.btn_register.clicked.connect(self.open_register_window)
-        self.view_patients.clicked.connect(lambda: get_patient_list(self))
-
         self.btn_load.clicked.connect(lambda: load_stl(self))
-        self.btn_save_json.clicked.connect(lambda: save_to_json(self))
         self.btn_load_points.clicked.connect(lambda: load_points(self))
+        self.btn_save_json.clicked.connect(lambda: save_to_json(self))
         self.btn_reset.clicked.connect(lambda: reset_markers(self))
         self.btn_undo.clicked.connect(lambda: undo_marker(self))
         self.btnSave.clicked.connect(lambda: save_data(self))
@@ -119,8 +108,7 @@ class MainWindow(QMainWindow):
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         self.markers = []
         self.points = []
-        # self.renderer.AddActor(self.text_actor)  # Add text_actor to renderer
-        # self.update_disclaimer_text(self.fileType)  # Initialize disclaimer text
+        self.selected_point = None
 
     def update_disclaimer_text(self, new_text):
         if hasattr(self, 'text_actor'):
@@ -148,19 +136,6 @@ class MainWindow(QMainWindow):
     
     def handle_data_from_register(self, data):
         self.file_data = data
-        self.current_patient = data  # Update current_patient for consistency
-        # print("Data received from RegisterWindow:", data)
-        print("Current patient data updated:", self.current_patient.get('patient_id'))
-        print("File data updated:", self.file_data.get('file_name', 'No file name provided'))
-        print("File type:", self.fileType)
-
-
-    """Slot to handle patient selection from PatientListWindow."""
-    def handle_patient_selection(self, patient_data):
-        self.current_patient = patient_data
-        self.file_data = patient_data  # For backward compatibility
-        print("Selected patient:", {k: v if k not in ["opposing_file", "prep_file", "buccal_file"] else "<base64>" for k, v in patient_data.items()})
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
