@@ -3,20 +3,52 @@ import base64
 import tempfile
 import numpy as np
 import requests
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QTableWidgetItem
+import os
+import trimesh
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel
 from vtk.util.numpy_support import vtk_to_numpy
 import vtk
 import numpy
 from stl import mesh
-from patient_list import PatientListWindow
-from commonHelper import RenderHelper  # Ensure this is properly imported
+from commonHelper import RenderHelper
+
+class CustomRenderHelper(RenderHelper):
+    def __init__(self, renderer, center, render_window, markers, points, main_window):
+        super().__init__(renderer, center, render_window, markers, points)
+        self.main_window = main_window
+
+    def leftButtonPressEvent(self, obj, event):
+        click_pos = self.GetInteractor().GetEventPosition()
+        picker = vtk.vtkCellPicker()
+        picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+        actor = picker.GetActor()
+        print(f"Clicked at {click_pos}, picked actor: {actor}")
+        if actor:
+            for i, marker in enumerate(self.markers):
+                if marker.get("actor") == actor:
+                    # Show confirmation dialog
+                    reply = QMessageBox.question(
+                        self.main_window,
+                        "Confirm Removal",
+                        f"Do you want to remove the point '{marker['name']}'?",
+                        QMessageBox.Ok | QMessageBox.Cancel,
+                        QMessageBox.Cancel
+                    )
+                    if reply == QMessageBox.Ok:
+                        # Remove point
+                        self.renderer.RemoveActor(marker["actor"])
+                        self.renderer.RemoveActor(marker["textActor"])
+                        self.markers.pop(i)
+                        self.points.pop(i)
+                        self.render_window.Render()
+                        print(f"Removed point: {self.points[i] if i < len(self.points) else 'last'}")
+                    else:
+                        print(f"Point '{marker['name']}' removal canceled")
+                    return
+        # Allow new point placement for non-point clicks
+        super().leftButtonPressEvent(obj, event)
 
 def load_stl(self):
-    # file_path = QFileDialog.getOpenFileName(self, "Select STL file", "", "STL Files (*.stl)")[0]
-    # if file_path:
-    #     with open(file_path, "rb") as file:
-    #             # Encode the file content in base64
-    #             self.files_data = base64.b64encode(file.read()).decode('utf-8')
     try:
         if self.fileType == "Upper Arch Segment":
             base64_stl_data = self.file_data['prep_file']
@@ -30,74 +62,90 @@ def load_stl(self):
 
     decoded_stl_data = base64.b64decode(base64_stl_data)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".stl") as temp_file:
-        self.markers.clear()  # Clear the list of markers
-        self.points.clear()  # Clear the list of points
-        
-        temp_file.write(decoded_stl_data)
-        temp_file_path = temp_file.name
+    temp_file = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".stl") as temp_file:
+            self.markers.clear()
+            self.points.clear()
+            temp_file.write(decoded_stl_data)
+            temp_file_path = temp_file.name
 
-        reader = vtk.vtkSTLReader()
-        reader.SetFileName(temp_file_path)
-        reader.Update()
+            reader = vtk.vtkSTLReader()
+            reader.SetFileName(temp_file_path)
+            reader.Update()
 
-        your_mesh = mesh.Mesh.from_file(temp_file_path)
+            your_mesh = mesh.Mesh.from_file(temp_file_path)
 
-        self.renderer.RemoveAllViewProps()
+            self.renderer.RemoveAllViewProps()
 
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputConnection(reader.GetOutputPort())
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
 
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        self.renderer.AddActor(actor)
-        self.renderer.ResetCamera()
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+            self.renderer.AddActor(actor)
+            self.renderer.ResetCamera()
 
-        self.center = np.mean(vtk_to_numpy(reader.GetOutput().GetPoints().GetData()), axis=0)
+            self.center = np.mean(vtk_to_numpy(reader.GetOutput().GetPoints().GetData()), axis=0)
 
-        points = np.vstack(np.array([your_mesh.v0, your_mesh.v1, your_mesh.v2]))
-        means = np.mean(points, axis=0)
-        centered_points = points - means
-        covariance_matrix = np.cov(centered_points, rowvar=False)
-        eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+            points = np.vstack(np.array([your_mesh.v0, your_mesh.v1, your_mesh.v2]))
+            means = np.mean(points, axis=0)
+            centered_points = points - means
+            covariance_matrix = np.cov(centered_points, rowvar=False)
+            eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
 
-        sorted_indexes = np.argsort(eigenvalues)[::-1]
-        principal_eigenvectors = eigenvectors[:, sorted_indexes]
-        top_principal_eigenvectors = principal_eigenvectors[:, :3]
-        eigenvectors = top_principal_eigenvectors
-        eigenvalues = eigenvalues[sorted_indexes[:3]]
+            sorted_indexes = np.argsort(eigenvalues)[::-1]
+            principal_eigenvectors = eigenvectors[:, sorted_indexes]
+            top_principal_eigenvectors = principal_eigenvectors[:, :3]
+            eigenvectors = top_principal_eigenvectors
+            eigenvalues = eigenvalues[sorted_indexes[:3]]
 
-        colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+            colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
 
-        for i, vec in enumerate(eigenvectors.T):
-            lineSource = vtk.vtkLineSource()
-            lineSource.SetPoint1(self.center)
-            lineSource.SetPoint2(self.center + vec * 10)
+            for i, vec in enumerate(eigenvectors.T):
+                lineSource = vtk.vtkLineSource()
+                lineSource.SetPoint1(self.center)
+                lineSource.SetPoint2(self.center + vec * 10)
 
-            lineMapper = vtk.vtkPolyDataMapper()
-            lineMapper.SetInputConnection(lineSource.GetOutputPort())
+                lineMapper = vtk.vtkPolyDataMapper()
+                lineMapper.SetInputConnection(lineSource.GetOutputPort())
 
-            lineActor = vtk.vtkActor()
-            lineActor.SetMapper(lineMapper)
-            lineActor.GetProperty().SetColor(colors[i])
-            lineActor.GetProperty().SetLineWidth(2)
+                lineActor = vtk.vtkActor()
+                lineActor.SetMapper(lineMapper)
+                lineActor.GetProperty().SetColor(colors[i])
+                lineActor.GetProperty().SetLineWidth(2)
 
-            self.renderer.AddActor(lineActor)
-        
-        # Initialize text actor here and store as a class attribute
-        self.text_actor = vtk.vtkTextActor()
-        self.text_actor.GetTextProperty().SetColor(0, 1, 0)  # Green color
-        self.text_actor.GetTextProperty().SetFontSize(20)
-        self.text_actor.SetPosition(20, 30)
-        self.renderer.AddActor(self.text_actor)
+                self.renderer.AddActor(lineActor)
+            
+            self.text_actor = vtk.vtkTextActor()
+            self.text_actor.GetTextProperty().SetColor(0, 1, 0)
+            self.text_actor.GetTextProperty().SetFontSize(20)
+            self.text_actor.SetPosition(20, 30)
+            self.renderer.AddActor(self.text_actor)
 
-        self.update_disclaimer_text(self.fileType)  # Initial text update
+            self.update_disclaimer_text(self.fileType)
 
-        self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
-        style = RenderHelper(self.renderer, self.center, self.vtkWidget.GetRenderWindow(), self.markers, self.points)
-        self.interactor.SetInteractorStyle(style)
-        self.interactor.Initialize()
-        self.vtkWidget.GetRenderWindow().Render()
+            self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
+            style = CustomRenderHelper(self.renderer, self.center, self.vtkWidget.GetRenderWindow(), self.markers, self.points, self)
+            self.interactor.SetInteractorStyle(style)
+            self.interactor.Initialize()
+            self.vtkWidget.GetRenderWindow().Render()
+
+    except OSError as e:
+        if e.errno == 28:
+            QMessageBox.critical(self, "Error", "No space left on disk. Free up space on C: drive and try again.")
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to load STL file: {str(e)}")
+        print(f"OSError: {e}")
+    except Exception as e:
+        QMessageBox.critical(self, "Error", f"Failed to load STL file: {str(e)}")
+        print(f"Exception: {e}")
+    finally:
+        if temp_file and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception as e:
+                print(f"Failed to delete temp file {temp_file_path}: {e}")
 
 def save_to_json(self):
     if not self.points:
@@ -139,31 +187,34 @@ def reset_markers(self):
 
 def save_data(self):
     try:
-        # url = 'http://3.6.62.207:8080/api/point/list'
-        url = 'http://localhost:8080/api/point/list'
-        data = {
-            "patient_id" : self.file_data['patient_id'],
-            "file_type" : self.fileType,
-            "measurement_type": self.measurement,
-            "points": [{"point_name": point["name"], "coordinates": f"{point['x']},{point['y']},{point['z']}"} for point in self.points]
-        }
+        if not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
+            QMessageBox.warning(self, "Error", "No patient data available. Register a patient first!")
+            return
 
-        print(data["patient_id"])
-    
-        response = requests.post(url, json=data)
-        if response.status_code == 201:
-            QMessageBox.information(self, "Success", "The data was saved successfully!")
+        # Send all points as new (excluding deleted ones)
+        if self.points:
+            url = 'http://localhost:8080/api/point/list'
+            data = {
+                "patient_id": self.file_data['patient_id'],
+                "file_type": self.fileType,
+                "measurement_type": self.measurement,
+                "points": [{"point_name": p["name"], "coordinates": f"{p['x']},{p['y']},{p['z']}"} for p in self.points]
+            }
+            response = requests.post(url, json=data)
+            if response.status_code != 201:
+                QMessageBox.warning(self, "Error", f"Failed to save points: {response.text}")
+                print(response.text, "\n", response)
+                return
 
-            # Clear markers and points after successful data transmission
-            self.markers.clear()  # Clear the list of markers
-            self.points.clear()  # Clear the list of points
-            self.renderer.RemoveAllViewProps()  # Optionally remove all actors from the renderer
-            self.vtkWidget.GetRenderWindow().Render()  # Re-render the window to update the scene
-        else:
-            QMessageBox.warning(self, "Error", "Failed to save data.")
-            print(response.text, "\n", response)
+        QMessageBox.information(self, "Success", "Points saved successfully!")
+        self.markers.clear()
+        self.points.clear()
+        self.renderer.RemoveAllViewProps()
+        self.vtkWidget.GetRenderWindow().Render()
+
     except Exception as e:
-        QMessageBox.critical(self, "Error", "An error occurred: " + str(e))
+        QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+        print(f"Exception: {e}")
 
 def load_points(self):
     try:
@@ -198,7 +249,7 @@ def load_points(self):
 
                 sphereSource = vtk.vtkSphereSource()
                 sphereSource.SetCenter(position)
-                sphereSource.SetRadius(0.1)
+                sphereSource.SetRadius(0.3)
                 sphereSource.Update()
 
                 mapper = vtk.vtkPolyDataMapper()
@@ -225,14 +276,16 @@ def load_points(self):
                     "y": coords[1],
                     "z": coords[2],
                     "actor": sphereActor,
-                    "textActor": textActor
+                    "textActor": textActor,
+                    "point_ID": point.get('pointId')  # Store for reference
                 })
 
                 self.points.append({
                     "name": label,
                     "x": coords[0],
                     "y": coords[1],
-                    "z": coords[2]
+                    "z": coords[2],
+                    "point_ID": point.get('pointId')  # Store for reference
                 })
 
             self.vtkWidget.GetRenderWindow().Render()
@@ -244,23 +297,37 @@ def load_points(self):
         QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
         print(f"Exception: {str(e)}")
 
+def edit_selected_point(self):
+    if not hasattr(self, 'selected_point') or not self.selected_point:
+        QMessageBox.warning(self, "Warning", "No point selected. Click a point to select it.")
+        return
 
-def get_patient_list(self):
-    self.patient_list_window = PatientListWindow()
-    self.patient_list_window.show()
-    response = requests.get("http://localhost:8080/api/patient/patients")
-    patients = response.json()
-    self.patient_list_window.patient_table.setRowCount(len(patients))
-    for i, patient in enumerate(patients):
-        self.patient_list_window.patient_table.setItem(i, 0, QTableWidgetItem(str(patient["patient_id"])))
-        self.patient_list_window.patient_table.setItem(i, 1, QTableWidgetItem(patient["name"]))
-        self.patient_list_window.patient_table.setItem(i, 2, QTableWidgetItem(str(patient["pre_PAR_score"])))
-        self.patient_list_window.patient_table.setItem(i, 3, QTableWidgetItem(str(patient["post_PAR_score"])))
-
-
-def view_points(self):
-    selected_row = self.patient_table.currentRow()
-    patient_id = self.patient_table.item(selected_row, 0).text()
-    response = requests.get(f"http://localhost:8080/api/patients/{patient_id}/points")
-    points = response.json()
-    # Display points in a new window or on a map
+    dialog = PointEditDialog(self.selected_point, self)
+    if dialog.exec_():
+        updated_point = dialog.get_updated_point()
+        if updated_point:
+            # Update point in memory
+            for i, point in enumerate(self.points):
+                if point == self.selected_point:
+                    self.points[i].update(updated_point)
+                    # Update marker display
+                    marker = self.markers[i]
+                    marker["name"] = updated_point["name"]
+                    marker["x"] = updated_point["x"]
+                    marker["y"] = updated_point["y"]
+                    marker["z"] = updated_point["z"]
+                    # Update sphere position
+                    sphere_source = vtk.vtkSphereSource()
+                    sphere_source.SetCenter(updated_point["x"], updated_point["y"], updated_point["z"])
+                    sphere_source.SetRadius(0.3)
+                    sphere_source.Update()
+                    mapper = vtk.vtkPolyDataMapper()
+                    mapper.SetInputConnection(sphere_source.GetOutputPort())
+                    marker["actor"].SetMapper(mapper)
+                    # Update text label
+                    marker["textActor"].SetInput(updated_point["name"])
+                    marker["textActor"].SetPosition(updated_point["x"], updated_point["y"], updated_point["z"])
+                    break
+            self.vtkWidget.GetRenderWindow().Render()
+            self.selected_point = None  # Clear selection
+            QMessageBox.information(self, "Success", "Point updated locally. Press Save to update in database.")
