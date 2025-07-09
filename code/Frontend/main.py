@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QComboBox, QLabel
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, load_points
+from button_functions import load_stl, save_to_json, undo_marker, reset_markers, save_data, load_points, edit_selected_point
 from register_patient import RegisterWindow
 from disclaimers import (UPPER_ANTERIOR_SEGMENT, LOWER_ANTERIOR_SEGMENT, BUCCAL_SEGMENT)
 
@@ -41,7 +41,6 @@ class MainWindow(QMainWindow):
         self.btn_reset = QPushButton("Reset Markers")
         self.btn_undo = QPushButton("Undo Marker")
         self.btnSave = QPushButton("Save")
-        
 
         button_style = """
         QPushButton, QComboBox, QLabel {
@@ -97,8 +96,8 @@ class MainWindow(QMainWindow):
         self.buttonPanel.addSpacing(2)
         self.btn_register.clicked.connect(self.open_register_window)
         self.btn_load.clicked.connect(lambda: load_stl(self))
-        self.btn_save_json.clicked.connect(lambda: save_to_json(self))
         self.btn_load_points.clicked.connect(lambda: load_points(self))
+        self.btn_save_json.clicked.connect(lambda: save_to_json(self))
         self.btn_reset.clicked.connect(lambda: reset_markers(self))
         self.btn_undo.clicked.connect(lambda: undo_marker(self))
         self.btnSave.clicked.connect(lambda: save_data(self))
@@ -109,6 +108,7 @@ class MainWindow(QMainWindow):
         self.vtkWidget.GetRenderWindow().AddRenderer(self.renderer)
         self.markers = []
         self.points = []
+        self.selected_point = None
 
     def update_disclaimer_text(self, new_text):
         if hasattr(self, 'text_actor'):

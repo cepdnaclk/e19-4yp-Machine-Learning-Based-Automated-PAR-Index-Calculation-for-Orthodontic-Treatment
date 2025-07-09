@@ -3,28 +3,67 @@ import numpy as np
 from PyQt5.QtWidgets import QInputDialog
 
 class RenderHelper(vtk.vtkInteractorStyleTrackballCamera):
-    def __init__(self, renderer, center, renderWindow, markers, points):
+    def __init__(self, renderer, center, render_window, markers, points):
         super(RenderHelper, self).__init__()
         self.renderer = renderer
         self.center = center
-        self.renderWindow = renderWindow
+        self.render_window = render_window
         self.markers = markers
         self.points = points
-        self.AddObserver("LeftButtonPressEvent", self.left_button_press)
-        self.input_active = False  # Flag to track when input is active
+        self.AddObserver("LeftButtonPressEvent", self.leftButtonPressEvent)
 
-    def left_button_press(self, obj, event):
-        if not self.input_active:  # Only process clicks if not currently handling input
-            clickPos = self.GetInteractor().GetEventPosition()
-            picker = vtk.vtkPropPicker()
-            picker.Pick(clickPos[0], clickPos[1], 0, self.renderer)
-            pickedPosition = picker.GetPickPosition()
+    def leftButtonPressEvent(self, obj, event):
+        click_pos = self.GetInteractor().GetEventPosition()
+        picker = vtk.vtkCellPicker()
+        picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+        
+        if picker.GetCellId() != -1:
+            pos = picker.GetPickPosition()
+            name, ok = QInputDialog.getText(None, "Point Name", "Enter point name:")
+            if ok and name:
+                sphereSource = vtk.vtkSphereSource()
+                sphereSource.SetCenter(pos)
+                sphereSource.SetRadius(0.5)
+                sphereSource.Update()
 
-            if picker.GetActor() is not None:
-                self.input_active = True  # Set flag to indicate input handling
-                self.add_marker(pickedPosition)
-            else:
-                self.OnLeftButtonDown()  # Continue camera manipulation if no actor was picked
+                mapper = vtk.vtkPolyDataMapper()
+                mapper.SetInputConnection(sphereSource.GetOutputPort())
+
+                sphereActor = vtk.vtkActor()
+                sphereActor.SetMapper(mapper)
+                sphereActor.GetProperty().SetColor(1, 0, 0)
+
+                textActor = vtk.vtkBillboardTextActor3D()
+                textActor.SetInput(name)
+                textProp = textActor.GetTextProperty()
+                textProp.SetFontSize(18)
+                textProp.SetColor(0, 1, 0)
+                textProp.SetBold(True)
+                textActor.SetPosition(pos)
+
+                self.renderer.AddActor(sphereActor)
+                self.renderer.AddActor(textActor)
+
+                self.markers.append({
+                    "name": name,
+                    "x": pos[0],
+                    "y": pos[1],
+                    "z": pos[2],
+                    "actor": sphereActor,
+                    "textActor": textActor
+                })
+
+                self.points.append({
+                    "name": name,
+                    "x": pos[0],
+                    "y": pos[1],
+                    "z": pos[2]
+                })
+
+                self.render_window.Render()
+        
+        self.OnLeftButtonDown()
+
 
     def add_marker(self, position):
         # Create and place a sphere (marker)
