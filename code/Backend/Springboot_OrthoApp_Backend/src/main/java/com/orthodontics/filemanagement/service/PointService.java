@@ -52,19 +52,33 @@ public class PointService {
         String file_type = pointListRequest.getFile_type();
         String measurement_type = pointListRequest.getMeasurement_type();
 
-        List<Point> points = pointListRequest.getPoints();
-
-        for (Point point : points) {
-            point.setStlFiles_id(stl_id);
-            point.setFile_type(file_type);
-            pointRepository.save(point);
+        // Delete existing points for this stlFiles_id and file_type
+        List<Point> existingPoints = pointRepository.findAllPointsForFile(stl_id, file_type);
+        if (!existingPoints.isEmpty()) {
+            pointRepository.deleteAll(existingPoints);
         }
+
+        // Frontend sends points as a list of objects with point_name and coordinates
+        List<PointListRequest.PointData> pointDataList = pointListRequest.getPoints();
+        List<Point> points = new ArrayList<>();
+
+        for (PointListRequest.PointData pointData : pointDataList) {
+            Point point = Point.builder()
+                    .stlFiles_id(stl_id)
+                    .file_type(file_type)
+                    .point_name(pointData.getPoint_name())
+                    .coordinates(pointData.getCoordinates())
+                    .build();
+            points.add(point);
+        }
+
+        pointRepository.saveAll(points);
     }
 
     public List<PointResponse> getPoints(Long patient_id, String file_type) {
         Long stl_id = stlFileService.getSTLFileId(patient_id);
         List<Point> allPoints = pointRepository.findAllPointsForFile(stl_id, file_type);
-        List<PointResponse> points = new java.util.ArrayList<>(List.of());
+        List<PointResponse> points = new ArrayList<>();
 
         for (Point point : allPoints) {
             PointResponse finalPoint = PointResponse.builder()
@@ -106,17 +120,17 @@ public class PointService {
 
         pointsByFileType.put("Upper Arch Segment", points.stream()
                 .filter(point -> "Upper Arch Segment".equals(point.getFile_type()))
-                .map(point -> new PARIndexPointsRequest(point.getName(), point.getCoordinates()))
+                .map(point -> new PARIndexPointsRequest(point.getPoint_ID(), point.getName(), point.getCoordinates()))
                 .collect(Collectors.toList()));
 
         pointsByFileType.put("Lower Arch Segment", points.stream()
                 .filter(point -> "Lower Arch Segment".equals(point.getFile_type()))
-                .map(point -> new PARIndexPointsRequest(point.getName(), point.getCoordinates()))
+                .map(point -> new PARIndexPointsRequest(point.getPoint_ID(), point.getName(), point.getCoordinates()))
                 .collect(Collectors.toList()));
 
         pointsByFileType.put("Buccal Segment", points.stream()
                 .filter(point -> "Buccal Segment".equals(point.getFile_type()))
-                .map(point -> new PARIndexPointsRequest(point.getName(), point.getCoordinates()))
+                .map(point -> new PARIndexPointsRequest(point.getPoint_ID(), point.getName(), point.getCoordinates()))
                 .collect(Collectors.toList()));
 
         return pointsByFileType;
