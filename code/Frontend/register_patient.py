@@ -1,4 +1,5 @@
 import base64
+#import tempfile
 import trimesh
 import gzip
 import shutil
@@ -67,7 +68,7 @@ class RegisterWindow(QMainWindow):
         self.pre_treatment_radio = QRadioButton('Pre Treatment')
         self.post_treatment_radio = QRadioButton('Post Treatment')
         self.treatment_type_layout.addWidget(self.pre_treatment_radio)
-        self.treatment_type_layout.addWidget(self.post_treatment_radio) 
+        self.treatment_type_layout.addWidget(self.post_treatment_radio)
         self.treatment_type_group.setLayout(self.treatment_type_layout)
         
         files_layout = QHBoxLayout()
@@ -238,7 +239,10 @@ class RegisterWindow(QMainWindow):
                 }
 
                 self.data_ready.emit(data)
-                QMessageBox.information(self, "Success", f"Patient registered successfully. Buccal STL saved as {buccal_file_path}")
+                patient_name = patient_data['name']
+                QMessageBox.information(self, "Success", f"Patient '{patient_name}' registered. You can now load STL files.")
+
+                # QMessageBox.information(self, "Success", f"Patient registered successfully. Occlusion STL saved.")
                 self.close()
             else:
                 QMessageBox.critical(self, "Error", f"Failed to register patient: {response.text}")
@@ -257,6 +261,7 @@ class RegisterWindow(QMainWindow):
                         os.remove(temp_file)
                     except Exception as e:
                         print(f"Failed to delete temp file {temp_file}: {e}")
+            # Note: buccal_file_path is not deleted to persist in the user's directory
 
     def browse_file(self, button, display_widget):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "STL Files (*.stl)")
