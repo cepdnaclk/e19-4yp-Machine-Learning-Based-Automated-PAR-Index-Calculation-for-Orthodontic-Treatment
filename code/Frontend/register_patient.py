@@ -239,7 +239,10 @@ class RegisterWindow(QMainWindow):
                 }
 
                 self.data_ready.emit(data)
-                QMessageBox.information(self, "Success", f"Patient registered successfully. Occlusion STL saved.")
+                patient_name = patient_data['name']
+                QMessageBox.information(self, "Success", f"Patient '{patient_name}' registered. You can now load STL files.")
+
+                # QMessageBox.information(self, "Success", f"Patient registered successfully. Occlusion STL saved.")
                 self.close()
             else:
                 QMessageBox.critical(self, "Error", f"Failed to register patient: {response.text}")

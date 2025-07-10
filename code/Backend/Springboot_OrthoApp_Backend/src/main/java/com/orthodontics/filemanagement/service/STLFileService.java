@@ -1,6 +1,7 @@
 package com.orthodontics.filemanagement.service;
 
 import com.orthodontics.filemanagement.dto.PatientRegisterRequest;
+import com.orthodontics.filemanagement.dto.StlFileResponse;
 import com.orthodontics.filemanagement.model.STLFiles;
 import com.orthodontics.filemanagement.repository.STLFileRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -69,7 +74,8 @@ public class STLFileService {
 
     public Resource getSTLFile(Long patient_id, String file_Type) {
         Long stl_id = getSTLFileId(patient_id);
-        STLFiles stlFiles = STLFileRepository.findByPatient_id(stl_id);
+        STLFiles stlFiles = STLFileRepository.findByPatient_id(patient_id);
+        if (stlFiles == null) return null;
 
         String filePath = switch (file_Type) {
             case "Lower" -> stlFiles.getPrep();
@@ -86,4 +92,41 @@ public class STLFileService {
 
         return null;
     }
+
+    public StlFileResponse getStlFileAsBase64(Long patientId, String fileType) throws IOException {
+        // 1. Find the STLFiles entity from the database
+        STLFiles stlFiles = STLFileRepository.findByPatient_id(patientId);
+        if (stlFiles == null) {
+            // Or throw a more specific custom exception
+            throw new RuntimeException("File metadata not found for patient id: " + patientId);
+        }
+
+        // 2. Determine which file path to use based on the 'fileType' parameter
+        String filePathStr = switch (fileType) {
+            case "prepFile" -> stlFiles.getPrep();
+            case "opposingFile" -> stlFiles.getOpposing();
+            case "buccalFile" -> stlFiles.getBuccal();
+            default -> throw new IllegalArgumentException("Invalid file type requested: " + fileType);
+        };
+
+        if (filePathStr == null || filePathStr.isBlank()) {
+            throw new RuntimeException("File path is not available for file type: " + fileType);
+        }
+
+        // 3. Read the file from the disk
+        Path filePath = Paths.get(filePathStr);
+        if (!Files.exists(filePath)) {
+            throw new RuntimeException("File not found on server at path: " + filePathStr);
+        }
+        byte[] fileBytes = Files.readAllBytes(filePath);
+
+        // 4. Encode the file bytes into a Base64 string
+        String base64Data = Base64.getEncoder().encodeToString(fileBytes);
+
+        // 5. Build and return the DTO
+        return StlFileResponse.builder()
+                .fileData(base64Data)
+                .build();
+    }
+
 }

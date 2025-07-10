@@ -3,6 +3,7 @@ package com.orthodontics.filemanagement.controller;
 import com.orthodontics.filemanagement.dto.PatientRegisterRequest;
 import com.orthodontics.filemanagement.dto.PatientRegisterResponse;
 import com.orthodontics.filemanagement.dto.PatientsResponse;
+import com.orthodontics.filemanagement.dto.StlFileResponse;
 import com.orthodontics.filemanagement.service.PatientService;
 import com.orthodontics.filemanagement.service.STLFileService;
 import lombok.RequiredArgsConstructor;
@@ -42,11 +43,20 @@ public class PatientController {
         return new ResponseEntity<>(patients, HttpStatus.OK);
     }
 
-//    @CrossOrigin
-//    @GetMapping(value = "/{patientId}")
-//    public ResponseEntity<PatientsResponse> getPatientById(@PathVariable Long patientId) {
-//        PatientsResponse patient = patientService.getPatientById(patientId);
-//        return new ResponseEntity<>(patient, HttpStatus.OK);
-//    }
+   @CrossOrigin
+   @GetMapping(value = "/{patientId}")
+   public ResponseEntity<PatientsResponse> getPatientById(@PathVariable Long patientId) {
+       PatientsResponse patient = patientService.getPatientById(patientId);
+       return new ResponseEntity<>(patient, HttpStatus.OK);
+   }
 
+    @CrossOrigin
+    @GetMapping(value = "/{patientId}/{fileType}")
+    public ResponseEntity<StlFileResponse> getPatientStlFile(
+            @PathVariable Long patientId,
+            @PathVariable String fileType) throws IOException {
+
+        StlFileResponse response = STLFileService.getStlFileAsBase64(patientId, fileType);
+        return ResponseEntity.ok(response);
+    }
 }
