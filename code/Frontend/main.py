@@ -248,8 +248,8 @@ class MainWindow(QMainWindow):
         self.buttonPanel.setContentsMargins(10, 10, 10, 10)
         
         # --- Create all UI Widgets ---
-        self.btn_register = QPushButton("Register Patient")
-        self.view_patients = QPushButton("View Patients")
+        self.btn_register = QPushButton("New Patient")
+        self.view_patients = QPushButton("Select Patient")
         self.label_filetype = QLabel('Select the file type:')
         self.fileTypeComboBox = QComboBox()
         self.fileTypeComboBox.addItems(["Upper Arch Segment", "Lower Arch Segment", "Buccal Segment"])
@@ -418,7 +418,7 @@ class MainWindow(QMainWindow):
             self.patient_name_annotation.SetText(vtk.vtkCornerAnnotation.UpperRight, display_text)
         else:
             # Set default text with margins
-            self.patient_name_annotation.SetText(vtk.vtkCornerAnnotation.UpperRight, "\n No Patient Loaded  ")
+            self.patient_name_annotation.SetText(vtk.vtkCornerAnnotation.UpperRight, "\n Patient: N/A  ")
         
         # Re-render the window to show the change
         self.vtkWidget.GetRenderWindow().Render()

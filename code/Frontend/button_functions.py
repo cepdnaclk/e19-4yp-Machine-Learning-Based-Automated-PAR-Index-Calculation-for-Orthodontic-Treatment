@@ -8,6 +8,7 @@ import vtk
 import numpy as np
 import gzip 
 import io  
+from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QDialog, QVBoxLayout, QLineEdit, QPushButton, QLabel
 from stl import mesh
 from vtk.util.numpy_support import vtk_to_numpy
@@ -158,7 +159,7 @@ def load_stl(self):
     Fetches, decompresses, and directly renders the STL file without simplification.
     """
     if not self.current_patient or 'patient_id' not in self.current_patient:
-        QMessageBox.warning(self, "Warning", "No patient selected. Please select a patient from the 'View Patients' list first.")
+        QMessageBox.warning(self, "Warning", "No patient selected. Please select a patient first.")
         return
 
     patient_id = self.current_patient['patient_id']
@@ -254,7 +255,9 @@ def load_stl(self):
         self.update_disclaimer_text(self.fileType)
 
         self.interactor = self.vtkWidget.GetRenderWindow().GetInteractor()
-        style = RenderHelper(self.renderer, self.center, self.vtkWidget.GetRenderWindow(), self.markers, self.points)
+        # style = RenderHelper(self.renderer, self.center, self.vtkWidget.GetRenderWindow(), self.markers, self.points)
+        # This is the new, correct way to call the unified RenderHelper
+        style = RenderHelper(self.renderer, self.vtkWidget.GetRenderWindow(), self.markers, self.points, self)
         style.SetMotionFactor(8.0)  # Increase the motion factor
         self.interactor.SetInteractorStyle(style)
         self.interactor.Initialize()
@@ -271,59 +274,44 @@ def load_stl(self):
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
-class CustomRenderHelper(RenderHelper):
-    def __init__(self, renderer, center, render_window, markers, points, main_window):
-        super().__init__(renderer, center, render_window, markers, points)
-        self.main_window = main_window
+# class CustomRenderHelper(RenderHelper):
+#     def __init__(self, renderer, center, render_window, markers, points, main_window):
+#         super().__init__(renderer, center, render_window, markers, points)
+#         self.main_window = main_window
 
-    def leftButtonPressEvent(self, obj, event):
-        click_pos = self.GetInteractor().GetEventPosition()
-        picker = vtk.vtkCellPicker()
-        picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
-        actor = picker.GetActor()
-        print(f"Clicked at {click_pos}, picked actor: {actor}")
-        if actor:
-            for i, marker in enumerate(self.markers):
-                if marker.get("actor") == actor:
-                    # Show confirmation dialog
-                    reply = QMessageBox.question(
-                        self.main_window,
-                        "Confirm Removal",
-                        f"Do you want to remove the point '{marker['name']}'?",
-                        QMessageBox.Ok | QMessageBox.Cancel,
-                        QMessageBox.Cancel
-                    )
-                    if reply == QMessageBox.Ok:
-                        # Remove point
-                        self.renderer.RemoveActor(marker["actor"])
-                        self.renderer.RemoveActor(marker["textActor"])
-                        self.markers.pop(i)
-                        self.points.pop(i)
-                        self.render_window.Render()
-                        print(f"Removed point: {self.points[i] if i < len(self.points) else 'last'}")
-                    else:
-                        print(f"Point '{marker['name']}' removal canceled")
-                    return
-        # Allow new point placement for non-point clicks
-        super().leftButtonPressEvent(obj, event)
+#     def leftButtonPressEvent(self, obj, event):
+#         click_pos = self.GetInteractor().GetEventPosition()
+#         picker = vtk.vtkCellPicker()
+#         picker.Pick(click_pos[0], click_pos[1], 0, self.renderer)
+#         actor = picker.GetActor()
+#         print(f"Clicked at {click_pos}, picked actor: {actor}")
+#         if actor:
+#             for i, marker in enumerate(self.markers):
+#                 if marker.get("actor") == actor:
+#                     # Show confirmation dialog
+#                     reply = QMessageBox.question(
+#                         self.main_window,
+#                         "Confirm Removal",
+#                         f"Do you want to remove the point '{marker['name']}'?",
+#                         QMessageBox.Ok | QMessageBox.Cancel,
+#                         QMessageBox.Cancel
+#                     )
+#                     if reply == QMessageBox.Ok:
+#                         # Remove point
+#                         self.renderer.RemoveActor(marker["actor"])
+#                         self.renderer.RemoveActor(marker["textActor"])
+#                         self.markers.pop(i)
+#                         self.points.pop(i)
+#                         self.render_window.Render()
+#                         print(f"Removed point: {self.points[i] if i < len(self.points) else 'last'}")
+#                     else:
+#                         print(f"Point '{marker['name']}' removal canceled")
+#                     return
+#         # Allow new point placement for non-point clicks
+#         super().leftButtonPressEvent(obj, event)
 
 
 
-# def save_to_json(self):
-#     if not self.points:
-#         QMessageBox.warning(self, "Warning", "No Data To Save.")
-#         print("No points to save.")
-#         return
-
-#     json_data = {
-#         "measurement_type": self.measurement,
-#         "points": [{"point_name": point["name"], "coordinates": (point["x"], point["y"], point["z"])} for point in self.points]
-#     }
-#     file_path = QFileDialog.getSaveFileName(self, "Save File", "", "JSON Files (*.json)")[0]
-#     if file_path:
-#         with open(file_path, 'w') as outfile:
-#             json.dump(json_data, outfile, indent=4)
-#         print("Data saved to", file_path)
 
 def save_to_json(self):
     if not self.points:
@@ -379,8 +367,8 @@ def reset_markers(self):
 
 def save_data(self):
     try:
-        if not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
-            QMessageBox.warning(self, "Error", "No patient data available. Register a patient first!")
+        if not self.file_data or not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
+            QMessageBox.warning(self, "Error", "No patient data available. Select a patient or register a patient first!")
             return
 
         # Send all points as new (excluding deleted ones)
@@ -410,8 +398,8 @@ def save_data(self):
 
 def load_points(self):
     try:
-        if not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
-            QMessageBox.warning(self, "Warning", "No patient data available. Register a patient first!")
+        if not self.file_data or not hasattr(self, 'file_data') or 'patient_id' not in self.file_data:
+            QMessageBox.warning(self, "Warning", "No patient data available. Select a patient or register a patient first!")
             return
 
         if not hasattr(self, 'renderer') or self.renderer.GetActors().GetNumberOfItems() == 0:
@@ -434,6 +422,7 @@ def load_points(self):
             self.markers.clear()
             self.points.clear()
 
+
             for point in file_type_points:
                 coords = [float(x) for x in point['coordinates'].split(',')]
                 position = (coords[0], coords[1], coords[2])
@@ -441,7 +430,7 @@ def load_points(self):
 
                 sphereSource = vtk.vtkSphereSource()
                 sphereSource.SetCenter(position)
-                sphereSource.SetRadius(0.3)
+                sphereSource.SetRadius(0.25)
                 sphereSource.Update()
 
                 mapper = vtk.vtkPolyDataMapper()
@@ -481,7 +470,28 @@ def load_points(self):
                 })
 
             self.vtkWidget.GetRenderWindow().Render()
-            QMessageBox.information(self, "Success", "Points loaded successfully!")
+            # QMessageBox.information(self, "Success", "Points loaded successfully!")
+            popup = QLabel("Points loaded successfully!", self)
+            popup.setWindowFlags(Qt.FramelessWindowHint | Qt.ToolTip | Qt.WindowStaysOnTopHint)
+
+            # Apply custom style with border-radius
+            popup.setStyleSheet("""
+                QLabel {
+                    color: white;
+                    background-color: #2a2a2a;
+                    border: 2px solid #0D47A1;
+                    font-size: 16px;
+                    font-weight: bold;
+                    padding: 15px;
+                    
+                }
+            """)
+            # Center the popup in the middle of the main window
+            popup.adjustSize()
+            popup.move(self.geometry().center() - popup.rect().center())
+
+            popup.show()
+            QTimer.singleShot(1500, popup.close)
         else:
             QMessageBox.warning(self, "Error", f"Failed to load points: {response.text}")
             print(f"Error response: {response.text}, Status: {response.status_code}")
@@ -489,40 +499,41 @@ def load_points(self):
         QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
         print(f"Exception: {str(e)}")
 
-def edit_selected_point(self):
-    if not hasattr(self, 'selected_point') or not self.selected_point:
-        QMessageBox.warning(self, "Warning", "No point selected. Click a point to select it.")
-        return
+# def edit_selected_point(self):
+#     if not hasattr(self, 'selected_point') or not self.selected_point:
+#         QMessageBox.warning(self, "Warning", "No point selected. Click a point to select it.")
+#         return
 
-    dialog = PointEditDialog(self.selected_point, self)
-    if dialog.exec_():
-        updated_point = dialog.get_updated_point()
-        if updated_point:
-            # Update point in memory
-            for i, point in enumerate(self.points):
-                if point == self.selected_point:
-                    self.points[i].update(updated_point)
-                    # Update marker display
-                    marker = self.markers[i]
-                    marker["name"] = updated_point["name"]
-                    marker["x"] = updated_point["x"]
-                    marker["y"] = updated_point["y"]
-                    marker["z"] = updated_point["z"]
-                    # Update sphere position
-                    sphere_source = vtk.vtkSphereSource()
-                    sphere_source.SetCenter(updated_point["x"], updated_point["y"], updated_point["z"])
-                    sphere_source.SetRadius(0.3)
-                    sphere_source.Update()
-                    mapper = vtk.vtkPolyDataMapper()
-                    mapper.SetInputConnection(sphere_source.GetOutputPort())
-                    marker["actor"].SetMapper(mapper)
-                    # Update text label
-                    marker["textActor"].SetInput(updated_point["name"])
-                    marker["textActor"].SetPosition(updated_point["x"], updated_point["y"], updated_point["z"])
-                    break
-            self.vtkWidget.GetRenderWindow().Render()
-            self.selected_point = None  # Clear selection
-            QMessageBox.information(self, "Success", "Point updated locally. Press Save to update in database.")
+#     dialog = PointEditDialog(self.selected_point, self)
+
+#     if dialog.exec_():
+#         updated_point = dialog.get_updated_point()
+#         if updated_point:
+#             # Update point in memory
+#             for i, point in enumerate(self.points):
+#                 if point == self.selected_point:
+#                     self.points[i].update(updated_point)
+#                     # Update marker display
+#                     marker = self.markers[i]
+#                     marker["name"] = updated_point["name"]
+#                     marker["x"] = updated_point["x"]
+#                     marker["y"] = updated_point["y"]
+#                     marker["z"] = updated_point["z"]
+#                     # Update sphere position
+#                     sphere_source = vtk.vtkSphereSource()
+#                     sphere_source.SetCenter(updated_point["x"], updated_point["y"], updated_point["z"])
+#                     sphere_source.SetRadius(0.3)
+#                     sphere_source.Update()
+#                     mapper = vtk.vtkPolyDataMapper()
+#                     mapper.SetInputConnection(sphere_source.GetOutputPort())
+#                     marker["actor"].SetMapper(mapper)
+#                     # Update text label
+#                     marker["textActor"].SetInput(updated_point["name"])
+#                     marker["textActor"].SetPosition(updated_point["x"], updated_point["y"], updated_point["z"])
+#                     break
+#             self.vtkWidget.GetRenderWindow().Render()
+#             self.selected_point = None  # Clear selection
+#             QMessageBox.information(self, "Success", "Point updated successfully. Press Save to save the changes.")
 
 
 def get_patient_list(self):
