@@ -328,6 +328,8 @@ def save_to_json(self):
     # Construct JSON data with sorted points
     json_data = {
         "measurement_type": self.measurement,
+        "patient_name": self.current_patient.get('name'),
+        "file_type": self.fileType,
         "points": [
             {
                 "point_name": point["name"],
