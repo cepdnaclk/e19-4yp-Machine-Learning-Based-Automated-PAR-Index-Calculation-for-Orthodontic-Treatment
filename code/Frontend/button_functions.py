@@ -81,6 +81,7 @@ def load_stl(self):
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         self.renderer.AddActor(actor)
+        self.stl_actor = actor # Store a reference to the STL model's actor
         self.renderer.ResetCamera()
 
         self.center = np.mean(vtk_to_numpy(reader.GetOutput().GetPoints().GetData()), axis=0)
@@ -365,6 +366,17 @@ def calculate_par_score(self):
     if not self.current_patient or 'patient_id' not in self.current_patient:
         QMessageBox.warning(self, "Warning", "No patient loaded. Please select a patient first.")
         return
+
+    # 1. Clear everything from the 3D view
+    self.renderer.RemoveAllViewProps()
+
+    # 2. Re-add the persistent text elements we want to keep
+    self.renderer.AddViewProp(self.patient_name_annotation)
+    self.renderer.AddViewProp(self.score_display_actor)
+    
+    # 3. Clear the point data lists
+    self.markers.clear()
+    self.points.clear()
 
     patient_id = self.current_patient['patient_id']
     

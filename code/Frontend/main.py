@@ -115,10 +115,10 @@ class MainWindow(QMainWindow):
 
         self.score_display_actor = vtk.vtkTextActor()
         score_prop = self.score_display_actor.GetTextProperty()
-        score_prop.SetFontSize(16)
+        score_prop.SetFontSize(18)
         score_prop.SetColor(1, 1, 0) # Yellow
         score_prop.SetBold(True)
-        score_prop.SetLineSpacing(2)
+        score_prop.SetLineSpacing(2.5)
 
         # Set the text alignment to centered
         # score_prop.SetJustificationToCentered()
@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
         # Note: This is an initial position; it may not stay perfectly centered on resize
         window_width = self.geometry().width() - 250 # Subtract button panel width
         window_height = self.geometry().height()
-        self.score_display_actor.SetPosition(window_width / 3, window_height / 1.5)
+        self.score_display_actor.SetPosition(window_width / 3 , window_height / 4.2)
         
         self.renderer.AddViewProp(self.score_display_actor)
 
@@ -145,6 +145,7 @@ class MainWindow(QMainWindow):
         self.renderer.AddViewProp(self.patient_name_annotation)
 
         self.text_actor = vtk.vtkTextActor()
+        self.stl_actor = None
         self.markers = []
         self.points = []
         self.current_patient = None
@@ -194,6 +195,22 @@ class MainWindow(QMainWindow):
         self.update_patient_name_display(self.current_patient.get('name'))
 
     def handle_patient_selection(self, patient_summary_data):
+        # 1. Clear all 3D models, markers, and axes from the scene
+        self.renderer.RemoveAllViewProps()
+        
+        # 2. Re-add the persistent text elements we want to keep
+        self.renderer.AddViewProp(self.patient_name_annotation)
+        self.renderer.AddViewProp(self.score_display_actor)
+        
+        # 3. Clear the PAR score text display
+        self.update_score_display(None)
+
+        # 4. Clear the reference to the old STL model actor
+        self.stl_actor = None
+        
+        # 5. Force a re-render to show the cleared scene immediately
+        self.vtkWidget.GetRenderWindow().Render()
+
         patient_id = patient_summary_data.get('patient_id')
         if not patient_id:
             QMessageBox.critical(self, "Error", "Selected patient has no ID.")
@@ -208,8 +225,11 @@ class MainWindow(QMainWindow):
                 self.current_patient = full_patient_data
                 self.file_data = full_patient_data # For backward compatibility
                 patient_name = self.current_patient.get('name', 'N/A')
+                
                 QMessageBox.information(self, "Patient Loaded", f"Patient '{patient_name}' has been loaded.")
                 print(f"Successfully loaded full data for patient: {patient_name}")
+                
+                # This will now update the patient name on the newly cleared scene
                 self.update_patient_name_display(patient_name)
             else:
                 QMessageBox.critical(self, "API Error", f"Failed to fetch patient details. Status: {response.status_code}\n{response.text}")
@@ -234,12 +254,19 @@ class MainWindow(QMainWindow):
         """Formats and displays the PAR score breakdown in the VTK window."""
         if score_data:
             # Build the multi-line string with the score details
-            score_text = "PAR Score Breakdown:\n"
-            score_text += f"  - Upper Anterior: {score_data.get('upperAnteriorScore', 'N/A')}\n"
-            score_text += f"  - Lower Anterior: {score_data.get('lowerAnteriorScore', 'N/A')}\n"
+            score_text = "PAR Score Breakdown for " + self.current_patient.get('treatment_status') + " Treatment" + "\n\n"
+            score_text += f"  - Upper Anterior:  {score_data.get('upperAnteriorScore', 'N/A')}\n"
+            score_text += f"  - Lower Anterior:  {score_data.get('lowerAnteriorScore', 'N/A')}\n"
+            score_text += "   Buccal Segment\n"
+            score_text += f"    - Antero Posterior Score:  {score_data.get('buccalOcclusionAnteroPosteriorScore', 'N/A')}\n"
+            score_text += f"    - Transverse Score:  {score_data.get('buccalOcclusionTransverseScore', 'N/A')}\n"
+            score_text += f"    - Vertical Score:  {score_data.get('buccalOcclusionVerticalScore', 'N/A')}\n"
+            score_text += f"  - Overjet:  {score_data.get('overjetScore', 'N/A')}\n"
+            score_text += f"  - Overbite:  {score_data.get('overbiteScore', 'N/A')}\n"
+            score_text += f"  - Centerline:  {score_data.get('centrelineScore', 'N/A')}\n"
             # Add other components here as you implement them
-            score_text += "--------------------\n"
-            score_text += f"  Final Score: {score_data.get('finalParScore', 'N/A')}"
+            score_text += "---------------------------\n"
+            score_text += f"  Final Score:  {score_data.get('finalParScore', 'N/A')}"
             
             self.score_display_actor.SetInput(score_text)
         else:

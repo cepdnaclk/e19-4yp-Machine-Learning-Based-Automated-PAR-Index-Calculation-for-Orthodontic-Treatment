@@ -9,6 +9,11 @@ public class ParScoreResponse {
     // We'll have separate scores for each component
     private int upperAnteriorScore;
     private int lowerAnteriorScore;
-    // ... we can add overjet, overbite, etc. here later ...
+    private int buccalOcclusionAnteroPosteriorScore;
+    private int buccalOcclusionTransverseScore;
+    private int buccalOcclusionVerticalScore;
+    private int overjetScore;
+    private int overbiteScore;
+    private int centrelineScore;
     private int finalParScore;
 }
