@@ -38,6 +38,7 @@ public class PatientService {
             PatientsResponse finalPatient= PatientsResponse.builder()
                     .patient_id(patient.getPatient_id())
                     .name(patient.getName())
+                    .treatment_status(patient.getTreatment_status())
                     .build();
 
             if(Objects.equals(patient.getTreatment_status(), "Pre Treatment")) {
@@ -70,6 +71,7 @@ public class PatientService {
         return PatientsResponse.builder()
                 .patient_id(patient.getPatient_id())
                 .name(patient.getName())
+                .treatment_status(patient.getTreatment_status())
                 .pre_PAR_score(10.0)
                 .post_PAR_score(20.0)
                 .build();

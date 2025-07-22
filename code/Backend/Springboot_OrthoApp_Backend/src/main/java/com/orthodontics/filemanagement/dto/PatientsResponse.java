@@ -10,6 +10,7 @@ import lombok.*;
 public class PatientsResponse {
     private Long patient_id;
     private String name;
+    private String treatment_status;
     private double pre_PAR_score;
     private double post_PAR_score;
 }
