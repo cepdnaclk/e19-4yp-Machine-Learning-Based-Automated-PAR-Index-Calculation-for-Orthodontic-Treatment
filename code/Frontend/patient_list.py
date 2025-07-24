@@ -97,7 +97,7 @@
 # patient_list.py
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QPushButton, QMessageBox, QAbstractItemView)
+                             QPushButton, QMessageBox, QAbstractItemView, QHeaderView)
 from PyQt5.QtCore import pyqtSignal
 
 class PatientListWindow(QDialog):
@@ -116,11 +116,44 @@ class PatientListWindow(QDialog):
         
         # Main layout
         layout = QVBoxLayout(self)
-        
+
+        button_style = """
+            QPushButton, QComboBox {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2196F3, stop:1 #0D47A1);
+                border: 2px solid #0D47A1;
+                border-radius: 15px;
+                padding: 10px;
+                font-size: 14px;
+                color: white;
+                font-weight: bold;
+            }
+            QPushButton, QComboBox {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2196F3, stop:1 #0D47A1);
+                border: 2px solid #0D47A1;
+                border-radius: 15px;
+                padding: 10px;
+                font-size: 14px;
+                color: white;
+                font-weight: bold;
+            }
+            QLabel {
+                color: white;
+                font-size: 14px;
+                padding-top: 10px;
+                padding-bottom: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover, QComboBox:hover {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0D47A1, stop:1 #2196F3);
+            }
+            """
+        self.setStyleSheet(button_style)
         # Table to display patients
         self.patient_table = QTableWidget()
-        self.patient_table.setColumnCount(4)
-        self.patient_table.setHorizontalHeaderLabels(["Patient ID", "Name", "Pre-PAR Score", "Post-PAR Score"])
+        self.patient_table.setColumnCount(3)
+        self.patient_table.setHorizontalHeaderLabels(["Name", "Pre-PAR Score", "Post-PAR Score"])
+        self.patient_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
         self.patient_table.setRowCount(len(self.patients_data))
         self.patient_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.patient_table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -128,10 +161,10 @@ class PatientListWindow(QDialog):
         
         # Populate the table
         for i, patient in enumerate(self.patients_data):
-            self.patient_table.setItem(i, 0, QTableWidgetItem(str(patient.get("patient_id", "N/A"))))
-            self.patient_table.setItem(i, 1, QTableWidgetItem(patient.get("name", "N/A")))
-            self.patient_table.setItem(i, 2, QTableWidgetItem(str(patient.get("pre_PAR_score", "N/A"))))
-            self.patient_table.setItem(i, 3, QTableWidgetItem(str(patient.get("post_PAR_score", "N/A"))))
+            # self.patient_table.setItem(i, 0, QTableWidgetItem(str(patient.get("patient_id", "N/A"))))
+            self.patient_table.setItem(i, 0, QTableWidgetItem(patient.get("name", "N/A")))
+            self.patient_table.setItem(i, 1, QTableWidgetItem(str(patient.get("pre_PAR_score", "N/A"))))
+            self.patient_table.setItem(i, 2, QTableWidgetItem(str(patient.get("post_PAR_score", "N/A"))))
         
         self.patient_table.resizeColumnsToContents()
         layout.addWidget(self.patient_table)

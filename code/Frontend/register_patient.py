@@ -12,6 +12,8 @@ from PyQt5.QtGui import QPixmap, QIcon
 import requests
 import os
 
+from config import BASE_URL
+
 class FileDisplayWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -225,7 +227,7 @@ class RegisterWindow(QMainWindow):
                 return
 
             # Send data to backend
-            url = 'http://localhost:8080/api/patient/register'
+            url = f"{BASE_URL}/api/patient/register"
             response = requests.post(url, data=patient_data, files=files_data)
             patient_id = response.json().get('patient_id')
 
@@ -233,9 +235,11 @@ class RegisterWindow(QMainWindow):
                 # Prepare data for emission
                 data = {
                     'patient_id': patient_id,
+                    'name': patient_data['name'],
                     'prep_file': base64.b64encode(open(self.prep_file_display.file_path, 'rb').read()).decode('utf-8'),
                     'opposing_file': base64.b64encode(open(self.opposing_file_display.file_path, 'rb').read()).decode('utf-8'),
-                    'buccal_file': buccal_base64
+                    'buccal_file': buccal_base64,
+                    'treatment_status': patient_data['treatment_status']
                 }
 
                 self.data_ready.emit(data)

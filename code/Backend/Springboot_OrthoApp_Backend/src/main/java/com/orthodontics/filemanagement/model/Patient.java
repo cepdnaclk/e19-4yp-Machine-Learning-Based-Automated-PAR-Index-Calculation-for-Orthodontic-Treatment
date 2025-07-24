@@ -21,4 +21,5 @@ public class Patient {
 
     private String name;
     private String treatment_status;
+    private Double par_score;
 }
