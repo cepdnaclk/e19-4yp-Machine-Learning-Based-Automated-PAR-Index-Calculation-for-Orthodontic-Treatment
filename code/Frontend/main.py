@@ -1,7 +1,7 @@
 import sys
 import requests
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QVBoxLayout, QHBoxLayout, QWidget,
-                             QPushButton, QComboBox, QLabel, QMessageBox)
+                             QPushButton, QComboBox, QLabel, QMessageBox, QInputDialog)
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
         # Note: This is an initial position; it may not stay perfectly centered on resize
         window_width = self.geometry().width() - 250 # Subtract button panel width
         window_height = self.geometry().height()
-        self.score_display_actor.SetPosition(window_width / 3 , window_height / 4.2)
+        self.score_display_actor.SetPosition(window_width / 4 , window_height / 4.2)
         
         self.renderer.AddViewProp(self.score_display_actor)
 
@@ -196,48 +196,108 @@ class MainWindow(QMainWindow):
         # QMessageBox.information(self, "Success", f"Patient '{patient_name}' registered. You can now load STL files.")
         self.update_patient_name_display(self.current_patient.get('name'))
 
+    # def handle_patient_selection(self, patient_summary_data):
+    #     # 1. Clear all 3D models, markers, and axes from the scene
+    #     self.renderer.RemoveAllViewProps()
+        
+    #     # 2. Re-add the persistent text elements we want to keep
+    #     self.renderer.AddViewProp(self.patient_name_annotation)
+    #     self.renderer.AddViewProp(self.score_display_actor)
+        
+    #     # 3. Clear the PAR score text display
+    #     self.update_score_display(None)
+
+    #     # 4. Clear the reference to the old STL model actor
+    #     self.stl_actor = None
+        
+    #     # 5. Force a re-render to show the cleared scene immediately
+    #     self.vtkWidget.GetRenderWindow().Render()
+
+    #     patient_id = patient_summary_data.get('patient_id')
+    #     if not patient_id:
+    #         QMessageBox.critical(self, "Error", "Selected patient has no ID.")
+    #         return
+
+    #     print(f"Fetching full details for patient ID: {patient_id}...")
+    #     try:
+    #         url = f"http://localhost:8080/api/patient/{patient_id}"
+    #         response = requests.get(url, timeout=10)
+    #         if response.status_code == 200:
+    #             full_patient_data = response.json()
+    #             self.current_patient = full_patient_data
+    #             self.file_data = full_patient_data # For backward compatibility
+    #             patient_name = self.current_patient.get('name', 'N/A')
+                
+    #             QMessageBox.information(self, "Patient Loaded", f"Patient '{patient_name}' has been loaded.")
+    #             print(f"Successfully loaded full data for patient: {patient_name}")
+                
+    #             # This will now update the patient name on the newly cleared scene
+    #             self.update_patient_name_display(patient_name)
+    #         else:
+    #             QMessageBox.critical(self, "API Error", f"Failed to fetch patient details. Status: {response.status_code}\n{response.text}")
+    #     except requests.exceptions.RequestException as e:
+    #         QMessageBox.critical(self, "Connection Error", f"Could not connect to the server.\n\nError: {e}")
+
     def handle_patient_selection(self, patient_summary_data):
-        # 1. Clear all 3D models, markers, and axes from the scene
-        self.renderer.RemoveAllViewProps()
-        
-        # 2. Re-add the persistent text elements we want to keep
-        self.renderer.AddViewProp(self.patient_name_annotation)
-        self.renderer.AddViewProp(self.score_display_actor)
-        
-        # 3. Clear the PAR score text display
-        self.update_score_display(None)
+        pre_id = patient_summary_data.get('preTreatmentPatientId')
+        post_id = patient_summary_data.get('postTreatmentPatientId')
+        patient_name = patient_summary_data.get('name')
 
-        # 4. Clear the reference to the old STL model actor
-        self.stl_actor = None
-        
-        # 5. Force a re-render to show the cleared scene immediately
-        self.vtkWidget.GetRenderWindow().Render()
+        choices = []
+        if pre_id:
+            choices.append("Pre-Treatment")
+        if post_id:
+            choices.append("Post-Treatment")
 
-        patient_id = patient_summary_data.get('patient_id')
-        if not patient_id:
-            QMessageBox.critical(self, "Error", "Selected patient has no ID.")
+        stage_to_load = None
+        if len(choices) == 1:
+            # If there's only one option, select it automatically
+            stage_to_load = choices[0]
+        elif len(choices) > 1:
+            # If there are multiple options, ask the user
+            stage, ok = QInputDialog.getItem(self, "Select Treatment Stage",
+                                            f"Which stage would you like to load for {patient_name}?", choices, 0, False)
+            if ok and stage:
+                stage_to_load = stage
+        else:
+            # If there are no options
+            QMessageBox.warning(self, "No Data", f"No treatment records found for patient {patient_name}.")
             return
 
-        print(f"Fetching full details for patient ID: {patient_id}...")
+        if not stage_to_load:
+            return # User cancelled or no stage was selected
+
+        # Determine which patient ID to use based on the chosen stage
+        patient_id_to_load = pre_id if stage_to_load == "Pre-Treatment" else post_id
+
+        # Reset the 3D view
+        self.renderer.RemoveAllViewProps()
+        self.renderer.AddViewProp(self.patient_name_annotation)
+        self.renderer.AddViewProp(self.score_display_actor)
+        self.update_score_display(None)
+        self.stl_actor = None
+        self.vtkWidget.GetRenderWindow().Render()
+
+        # --- Proceed to fetch data using the chosen ID ---
+        print(f"Fetching {stage_to_load} details for patient ID: {patient_id_to_load}...")
         try:
+<<<<<<< HEAD
             url = f"{BASE_URL}/api/patient/{patient_id}"
+=======
+            url = f"http://localhost:8080/api/patient/{patient_id_to_load}"
+>>>>>>> d35fc3d36df29a97ec08cab8d0cfc2ad657ecd97
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 full_patient_data = response.json()
                 self.current_patient = full_patient_data
-                self.file_data = full_patient_data # For backward compatibility
-                patient_name = self.current_patient.get('name', 'N/A')
+                self.file_data = full_patient_data
                 
-                QMessageBox.information(self, "Patient Loaded", f"Patient '{patient_name}' has been loaded.")
-                print(f"Successfully loaded full data for patient: {patient_name}")
-                
-                # This will now update the patient name on the newly cleared scene
-                self.update_patient_name_display(patient_name)
+                QMessageBox.information(self, "Patient Loaded", f"{stage_to_load} data for '{patient_name}' has been loaded.")
+                self.update_patient_name_display(f"{patient_name} ({stage_to_load})")
             else:
                 QMessageBox.critical(self, "API Error", f"Failed to fetch patient details. Status: {response.status_code}\n{response.text}")
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, "Connection Error", f"Could not connect to the server.\n\nError: {e}")
-
 
     def update_patient_name_display(self, name):
         """Updates the text in the top right corner with margins."""
@@ -253,6 +313,7 @@ class MainWindow(QMainWindow):
         self.vtkWidget.GetRenderWindow().Render()
 
     def update_score_display(self, score_data):
+        # print(self.current_patient)
         """Formats and displays the PAR score breakdown in the VTK window."""
         if score_data:
             # Build the multi-line string with the score details

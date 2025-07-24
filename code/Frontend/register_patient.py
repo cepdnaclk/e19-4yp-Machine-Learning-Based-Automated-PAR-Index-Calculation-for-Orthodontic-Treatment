@@ -238,7 +238,8 @@ class RegisterWindow(QMainWindow):
                     'name': patient_data['name'],
                     'prep_file': base64.b64encode(open(self.prep_file_display.file_path, 'rb').read()).decode('utf-8'),
                     'opposing_file': base64.b64encode(open(self.opposing_file_display.file_path, 'rb').read()).decode('utf-8'),
-                    'buccal_file': buccal_base64
+                    'buccal_file': buccal_base64,
+                    'treatment_status': patient_data['treatment_status']
                 }
 
                 self.data_ready.emit(data)
