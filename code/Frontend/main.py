@@ -11,6 +11,8 @@ from button_functions import (load_stl, save_to_json, undo_marker, reset_markers
 from register_patient import RegisterWindow
 from disclaimers import (UPPER_ANTERIOR_SEGMENT, LOWER_ANTERIOR_SEGMENT, BUCCAL_SEGMENT)
 
+from config import BASE_URL
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -218,7 +220,7 @@ class MainWindow(QMainWindow):
 
         print(f"Fetching full details for patient ID: {patient_id}...")
         try:
-            url = f"http://localhost:8080/api/patient/{patient_id}"
+            url = f"{BASE_URL}/api/patient/{patient_id}"
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 full_patient_data = response.json()

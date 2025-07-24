@@ -13,6 +13,8 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLi
                              QLabel, QRadioButton, QGroupBox, QMessageBox, QFileDialog)
 from PyQt5.QtCore import pyqtSignal
 
+from config import BASE_URL
+
 class FileDisplayWidget(QWidget):
     """A helper widget to show the selected file name."""
     def __init__(self, parent=None):
@@ -125,7 +127,7 @@ class RegisterPatientWidget(QWidget):
             # (Your logic for creating the buccal file would go here as well)
 
             # 3. Send data to backend
-            url = 'http://localhost:8080/api/patient/register'
+            url = f'{BASE_URL}/api/patient/register'
             response = requests.post(url, data=patient_data, files=files_to_upload)
             
             # Close file handles before cleaning up
