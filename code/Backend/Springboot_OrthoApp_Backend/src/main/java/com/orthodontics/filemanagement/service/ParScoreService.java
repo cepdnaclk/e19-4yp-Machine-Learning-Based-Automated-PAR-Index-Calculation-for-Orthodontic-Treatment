@@ -2,9 +2,12 @@ package com.orthodontics.filemanagement.service;
 import com.orthodontics.filemanagement.dto.ParScoreResponse;
 import com.orthodontics.filemanagement.model.Point;
 import com.orthodontics.filemanagement.repository.PointRepository;
+import com.orthodontics.filemanagement.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.orthodontics.filemanagement.model.Patient;
 
+import jakarta.persistence.EntityNotFoundException;
 import javax.vecmath.Point3d;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +18,7 @@ import java.util.stream.Collectors;
 public class ParScoreService {
 
     private final PointRepository pointRepository;
+    private final PatientRepository patientRepository;
 
     public ParScoreResponse calculateParScoreForPatient(Long patientId) {
         List<Point> pointsFromDb = pointRepository.findAllByStlFiles_id(patientId);
@@ -61,12 +65,24 @@ public class ParScoreService {
         // 3. Sum the component scores for the final PAR score
         int finalScore = upperAnteriorScore +
                 lowerAnteriorScore +
-                (overjetScore * 6) +
-                (overbiteScore * 2) +
-                (centrelineScore * 4) +
                 buccalAnteroPosterior + // Weighting is x1
                 buccalTransverse +      // Weighting is x1
-                buccalVertical;
+                buccalVertical +
+                (overjetScore * 6) +
+                (overbiteScore * 2) +
+                (centrelineScore * 4);
+
+        // save par_idex to DB patient
+        // 1. Find the patient record
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
+
+        // 2. Set the calculated score
+        patient.setPar_score((double) finalScore);
+
+        // 3. Save the updated patient record
+        patientRepository.save(patient);
+        System.out.println("Successfully saved PAR score for patient " + patientId);
 
         // 4. Build the detailed response
         return ParScoreResponse.builder()
@@ -209,50 +225,70 @@ public class ParScoreService {
     }
 
     private int calculateBuccalVertical(Map<String, Point3d> upper, Map<String, Point3d> lower, String side) {
-        // Measures posterior open bite by finding the center of the occluding surfaces.
+        // --- Get all points for the 4th, 5th, and 6th teeth ---
+        Point3d upper6MB = upper.get(side + "6MB"),
+                upper6MP = upper.get(side + "6MP"),
+                upper6DB = upper.get(side + "6DB"),
+                upper6DP = upper.get(side + "6DP");
+        Point3d lower6MB = lower.get(side + "6MB"),
+                lower6MP = lower.get(side + "6MP"),
+                lower6DB = lower.get(side + "6DB"),
+                lower6DP = lower.get(side + "6DP");
+        Point3d upper5BT = upper.get(side + "5BT"),
+                upper5PT = upper.get(side + "5PT"),
+                lower5BT = lower.get(side + "5BT"),
+                lower5PT = lower.get(side + "5PT");
+        Point3d upper4BT = upper.get(side + "4BT"),
+                upper4PT = upper.get(side + "4PT"),
+                lower4BT = lower.get(side + "4BT"),
+                lower4PT = lower.get(side + "4PT");
 
-        // 1. Get all four cusp tips for the upper tooth
-        Point3d upper6MB = upper.get(side + "6MB");
-        Point3d upper6MP = upper.get(side + "6MP");
-        Point3d upper6DB = upper.get(side + "6DB");
-        Point3d upper6DP = upper.get(side + "6DP");
+        // --- Counter for teeth with open bite ---
+        int openBiteCount = 0;
 
-        // 2. Get all four cusp tips for the lower tooth
-        Point3d lower6MB = lower.get(side + "6MB");
-        Point3d lower6MP = lower.get(side + "6MP");
-        Point3d lower6DB = lower.get(side + "6DB");
-        Point3d lower6DP = lower.get(side + "6DP");
+        // --- Check and calculate for the 6th tooth ---
+        if (upper6MB != null && upper6MP != null && upper6DB != null && upper6DP != null &&
+                lower6MB != null && lower6MP != null && lower6DB != null && lower6DP != null) {
 
-        // Check if all necessary points exist to avoid errors
-        if (upper6MB == null || upper6MP == null || upper6DB == null || upper6DP == null ||
-                lower6MB == null || lower6MP == null || lower6DB == null || lower6DP == null) {
-            System.out.println("Warning: Missing one or more cusp tips for Buccal Vertical calculation on side: " + side);
-            return 0;
+            Point3d upperOcclusalCenter6 = new Point3d((upper6MB.x + upper6MP.x + upper6DB.x + upper6DP.x) / 4.0, (upper6MB.y + upper6MP.y + upper6DB.y + upper6DP.y) / 4.0, (upper6MB.z + upper6MP.z + upper6DB.z + upper6DP.z) / 4.0);
+            Point3d lowerOcclusalCenter6 = new Point3d((lower6MB.x + lower6MP.x + lower6DB.x + lower6DP.x) / 4.0, (lower6MB.y + lower6MP.y + lower6DB.y + lower6DP.y) / 4.0, (lower6MB.z + lower6MP.z + lower6DB.z + lower6DP.z) / 4.0);
+
+            // Vertical open bite is the difference in the Y-axis
+            double openBite6 = upperOcclusalCenter6.y - lowerOcclusalCenter6.y;
+            if (openBite6 > 2.0) {
+                openBiteCount++;
+            }
         }
 
-        // 3. Calculate the centroid (average point) of the upper occluding surface
-        Point3d upperOcclusalCenter = new Point3d(
-                (upper6MB.x + upper6MP.x + upper6DB.x + upper6DP.x) / 4.0,
-                (upper6MB.y + upper6MP.y + upper6DB.y + upper6DP.y) / 4.0,
-                (upper6MB.z + upper6MP.z + upper6DB.z + upper6DP.z) / 4.0
-        );
+        // --- Check and calculate for the 5th tooth ---
+        if (upper5BT != null && upper5PT != null && lower5BT != null && lower5PT != null) {
+            Point3d upperOcclusalCenter5 = new Point3d((upper5BT.x + upper5PT.x) / 2.0, (upper5BT.y + upper5PT.y) / 2.0, (upper5BT.z + upper5PT.z) / 2.0);
+            Point3d lowerOcclusalCenter5 = new Point3d((lower5BT.x + lower5PT.x) / 2.0, (lower5BT.y + lower5PT.y) / 2.0, (lower5BT.z + lower5PT.z) / 2.0);
 
-        // 4. Calculate the centroid of the lower occluding surface
-        Point3d lowerOcclusalCenter = new Point3d(
-                (lower6MB.x + lower6MP.x + lower6DB.x + lower6DP.x) / 4.0,
-                (lower6MB.y + lower6MP.y + lower6DB.y + lower6DP.y) / 4.0,
-                (lower6MB.z + lower6MP.z + lower6DB.z + lower6DP.z) / 4.0
-        );
-
-        // 5. Measure the vertical distance (Z-axis) between the two centroids
-        double openBite = upperOcclusalCenter.z - lowerOcclusalCenter.z;
-
-        // 6. Assign score based on the distance (same as before)
-        if (openBite > 2.0) {
-            return 1; // Posterior open bite of more than 2mm
+            double openBite5 = upperOcclusalCenter5.y - lowerOcclusalCenter5.y;
+            if (openBite5 > 2.0) {
+                openBiteCount++;
+            }
         }
 
-        return 0; // No significant open bite
+        // --- Check and calculate for the 4th tooth ---
+        if (upper4BT != null && upper4PT != null && lower4BT != null && lower4PT != null) {
+            Point3d upperOcclusalCenter4 = new Point3d((upper4BT.x + upper4PT.x) / 2.0, (upper4BT.y + upper4PT.y) / 2.0, (upper4BT.z + upper4PT.z) / 2.0);
+            Point3d lowerOcclusalCenter4 = new Point3d((lower4BT.x + lower4PT.x) / 2.0, (lower4BT.y + lower4PT.y) / 2.0, (lower4BT.z + lower4PT.z) / 2.0);
+
+            double openBite4 = upperOcclusalCenter4.y - lowerOcclusalCenter4.y;
+            if (openBite4 > 2.0) {
+                openBiteCount++;
+            }
+        }
+
+        // --- Assign the final score based on the count ---
+        // According to the PAR index, the score is 1 if at least two teeth are in open bite
+        if (openBiteCount >= 2) {
+            return 1;
+        }
+
+        return 0; // No significant posterior open bite
     }
 
     // Score calculation for overjet
