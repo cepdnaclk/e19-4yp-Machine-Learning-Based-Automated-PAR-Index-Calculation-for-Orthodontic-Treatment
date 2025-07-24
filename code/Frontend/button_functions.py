@@ -15,6 +15,8 @@ from vtk.util.numpy_support import vtk_to_numpy
 from commonHelper import RenderHelper
 from patient_list import PatientListWindow 
 
+from config import BASE_URL
+
 def load_stl(self):
     """
     Fetches, decompresses, and directly renders the STL file without simplification.
@@ -31,7 +33,7 @@ def load_stl(self):
         QMessageBox.critical(self, "Error", "Invalid file type selected.")
         return
 
-    url = f"http://localhost:8080/api/patient/{patient_id}/{file_key}"
+    url = f"{BASE_URL}/api/patient/{patient_id}/{file_key}"
     print(f"Requesting STL file from: {url}")
     try:
         response = requests.get(url, timeout=60)
@@ -201,7 +203,7 @@ def save_data(self):
 
         # Send all points as new (excluding deleted ones)
         if self.points:
-            url = 'http://localhost:8080/api/point/list'
+            url = f"{BASE_URL}/api/point/list"
             data = {
                 "patient_id": self.file_data['patient_id'],
                 "file_type": self.fileType,
@@ -234,7 +236,7 @@ def load_points(self):
             QMessageBox.warning(self, "Warning", "No STL file loaded. Load an STL file first!")
             return
 
-        url = f'http://localhost:8080/api/point?patient_id={self.file_data["patient_id"]}'
+        url = f'{BASE_URL}/api/point?patient_id={self.file_data["patient_id"]}'
         print(f"Requesting points from: {url}")
         response = requests.get(url)
         
@@ -334,7 +336,7 @@ def get_patient_list(self):
     """
     try:
         # Fetch patient data from your Spring Boot backend
-        url = 'http://localhost:8080/api/patient/patients'
+        url = f"{BASE_URL}/api/patient/patients"
         response = requests.get(url, timeout=5) # Added a timeout
         
         if response.status_code == 200:
@@ -381,7 +383,7 @@ def calculate_par_score(self):
     patient_id = self.current_patient['patient_id']
     
     # The URL now includes the patient ID
-    url = f'http://localhost:8080/api/par-score/calculate/{patient_id}'
+    url = f"{BASE_URL}/api/par-score/calculate/{patient_id}"
     print(f"Requesting PAR score calculation from: {url}")
 
     try:
